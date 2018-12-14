@@ -1,8 +1,10 @@
 FROM centos:7.5.1804
 
-ENV http_proxy=http://proxy.ign.fr:3128/ https_proxy=http://proxy.ign.fr:3128/ HTTP_PROXY=http://proxy.ign.fr:3128/ HTTPS_PROXY=http://proxy.ign.fr:3128/
+ARG proxy="http://proxy.ign.fr:3128/"
 
-ENV HOME=/var/lib/pgsql PGDATA=/var/lib/pgsql/10.6/data
+ENV http_proxy=$proxy https_proxy=$proxy HTTP_PROXY=$proxy HTTPS_PROXY=$proxy
+
+ENV HOME=/var/lib/pgsql PGDATA=/var/lib/pgsql/10/data
 
 RUN NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
  yum -y update && \
