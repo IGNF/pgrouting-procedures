@@ -1,0 +1,106 @@
+#!/bin/sh
+#
+# postgresql-setup	Initialization and upgrade operations for PostgreSQL
+
+# PGVERSION is the full package version, e.g., 9.4.0
+# Note: the specfile inserts the correct value during package build
+PGVERSION=10.6
+# PGMAJORVERSION is major version, e.g., 9.4 (this should match PG_VERSION)
+PGMAJORVERSION=10
+# PGENGINE is the directory containing the postmaster executable
+# Note: the specfile inserts the correct value during package build
+PGENGINE=/usr/pgsql-$PGMAJORVERSION/bin
+
+# The second parameter is the new database version, i.e. $PGMAJORVERSION in this case.
+# Use  "postgresql-$PGMAJORVERSION" service, if not specified.
+SERVICE_NAME="$2"
+if [ x"$SERVICE_NAME" = x ]
+then
+    SERVICE_NAME=postgresql-$PGMAJORVERSION
+fi
+
+# note that these options are useful at least for help2man processing
+case "$1" in
+    --version)
+	echo "postgresql-setup $PGVERSION"
+        exit 0
+        ;;
+esac
+
+# this parsing technique fails for PGDATA pathnames containing spaces,
+# but there's not much I can do about it given systemctl's output format...
+PGDATA=/var/lib/pgsql/$PGMAJORVERSION/data/
+
+# Log file for initdb
+PGLOG=/var/lib/pgsql/$PGMAJORVERSION/initdb.log
+
+export PGDATA
+
+SU=su
+
+script_result=0
+
+# code shared between initdb and upgrade actions
+perform_initdb(){
+    if [ ! -e "$PGDATA" ]; then
+        mkdir "$PGDATA" || return 1
+        chown postgres:postgres "$PGDATA"
+        chmod go-rwx "$PGDATA"
+    fi
+    # Clean up SELinux tagging for PGDATA
+    [ -x /sbin/restorecon ] && /sbin/restorecon "$PGDATA"
+
+    # Create the initdb log file if needed
+    if [ ! -e "$PGLOG" -a ! -h "$PGLOG" ]; then
+        touch "$PGLOG" || return 1
+        chown postgres:postgres "$PGLOG"
+        chmod go-rwx "$PGLOG"
+        [ -x /sbin/restorecon ] && /sbin/restorecon "$PGLOG"
+    fi
+
+    # Initialize the database
+    initdbcmd="$PGENGINE/initdb --pgdata='$PGDATA' --auth='ident'"
+    initdbcmd+=" $PGSETUP_INITDB_OPTIONS"
+
+    $SU -l postgres -c "$initdbcmd" >> "$PGLOG" 2>&1 < /dev/null
+
+    # Create directory for postmaster log files
+    mkdir "$PGDATA/pg_log"
+    chown postgres:postgres "$PGDATA/pg_log"
+    chmod go-rwx "$PGDATA/pg_log"
+    [ -x /sbin/restorecon ] && /sbin/restorecon "$PGDATA/pg_log"
+
+    if [ -f "$PGDATA/PG_VERSION" ]; then
+        return 0
+    fi
+    return 1
+}
+
+initdb(){
+    if [ -f "$PGDATA/PG_VERSION" ]; then
+        echo $"Data directory is not empty!"
+        echo
+        script_result=1
+    else
+        echo -n $"Initializing database ... "
+        if perform_initdb; then
+            echo $"OK"
+        else
+            echo $"failed, see $PGLOG"
+            script_result=1
+        fi
+        echo
+    fi
+}
+
+# See how we were called.
+case "$1" in
+    initdb)
+        initdb
+        ;;
+    *)
+        echo >&2 "$USAGE_STRING"
+        exit 2
+esac
+
+exit $script_result
