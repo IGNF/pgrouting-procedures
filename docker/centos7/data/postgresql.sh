@@ -22,7 +22,7 @@ create_dbuser() {
   if [ -n "${DB_USER}" ]; then
 
     # run postgresql server
-    cd /var/lib/pgsql && sudo -u $PG_USER bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
+    cd /var/lib/pgsql && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
     # generate password
     if [ -z "${DB_PASS}" ]; then
       echo "WARNING: "
@@ -34,11 +34,11 @@ create_dbuser() {
     echo "Creating user \"${DB_USER}\"..."
     $PSQL -U $PG_USER -c "CREATE ROLE ${DB_USER} with CREATEROLE login superuser PASSWORD '${DB_PASS}';"
     # if the user is already created set authentication method to md5
-    sudo -u $PG_USER bash -c "echo \"host    all             all             0.0.0.0/0               md5\" >> $PG_CONFDIR/pg_hba.conf"
+    bash -c "echo \"host    all             all             0.0.0.0/0               md5\" >> $PG_CONFDIR/pg_hba.conf"
 
   else
     # the user is not created set authentication method to trust
-    sudo -u $PG_USER bash -c "echo \"host    all             all             0.0.0.0/0               trust\" >> $PG_CONFDIR/pg_hba.conf"
+    bash -c "echo \"host    all             all             0.0.0.0/0               trust\" >> $PG_CONFDIR/pg_hba.conf"
   fi
 
   if [ -n "${DB_NAME}" ]; then
@@ -47,6 +47,9 @@ create_dbuser() {
     echo "Creating database \"${DB_NAME}\"..."
     echo "CREATE DATABASE ${DB_NAME};"
     $PSQL -U $PG_USER -c "CREATE DATABASE ${DB_NAME}"
+    echo "Adding postgis and pgrouting extentions to \"${DB_NAME}\"..."
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION postgis"
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION pgrouting"
     # grant permission
     if [ -n "${DB_USER}" ]; then
       echo "Granting access to database \"${DB_NAME}\" for user \"${DB_USER}\"..."
@@ -54,7 +57,7 @@ create_dbuser() {
     fi
 
     # stop postgresql server
-    sudo -u $PG_USER bash -c "$PG_CTL -D $PG_CONFDIR -m fast -w stop"
+    bash -c "$PG_CTL -D $PG_CONFDIR -m fast -w stop"
 
   fi
 }
