@@ -9,7 +9,7 @@ $$ LANGUAGE SQL ;
 
 
 -- Dijskstra entre lat1 lon1 et lat2 lon2
-CREATE OR REPLACE FUNCTION coord_dijskstra(lat1 double precision,
+CREATE OR REPLACE FUNCTION coord_dijkstra(lat1 double precision,
                                            lon1 double precision,
                                            lat2 double precision,
                                            lon2 double precision,
