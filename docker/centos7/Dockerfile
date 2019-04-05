@@ -29,7 +29,8 @@ RUN NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
  make -j${NPROC} && \
  make -j${NPROC} install && \
  cd .. && \
- yum -y install posgis25_10-2.5.1 postgis25_10-client-2.5.1 pgrouting_10-2.6.1
+ yum -y install postgis25_10-2.5.1 && \
+ yum -y install postgis25_10-client-2.5.1 pgrouting_10-2.6.1
 
 # Copy
 COPY data/postgresql-setup /usr/pgsql-10.6/bin/postgresql106-setup
