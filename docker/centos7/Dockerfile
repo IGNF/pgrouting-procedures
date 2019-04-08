@@ -13,7 +13,7 @@ RUN NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
  yum -y install devtoolset-6 && \
  rpm -Uvh https://yum.postgresql.org/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm && \
  scl enable devtoolset-6 bash && \
- yum -y install git cmake3 zlib-devel postgresql10-10.6 postgresql10-server-10.6 postgresql10-libs-10.6 postgresql10-contrib-10.6 postgresql10-devel-10.6 && \
+ yum -y install git cmake3 zlib-devel postgresql10-10.7 postgresql10-server-10.7 postgresql10-libs-10.7 postgresql10-contrib-10.7 postgresql10-devel-10.7 && \
  export CC=/opt/rh/devtoolset-6/root/usr/bin/gcc CXX=/opt/rh/devtoolset-6/root/usr/bin/g++ && \
  git clone --depth=1 --branch=v2.3.1 https://github.com/OSGeo/gdal.git && \
  cd gdal/gdal && \
@@ -33,13 +33,13 @@ RUN NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
  yum -y install postgis25_10-client-2.5.1 pgrouting_10-2.6.1
 
 # Copy
-COPY data/postgresql-setup /usr/pgsql-10.6/bin/postgresql106-setup
+COPY data/postgresql-setup /usr/pgsql-10.7/bin/postgresql106-setup
 
 # Working directory
 WORKDIR /var/lib/pgsql
-
+  
 # Run initdb
-RUN /usr/pgsql-10.6/bin/postgresql106-setup initdb
+RUN /usr/pgsql-10.7/bin/postgresql106-setup initdb -d
 
 # Copy config file
 COPY data/postgresql.conf /var/lib/pgsql/10/data/postgresql.conf
@@ -55,9 +55,6 @@ RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
 
 # Set volume
 VOLUME ["/var/lib/pgsql"]
-
-# Set username
-USER postgres
 
 # Run PostgreSQL Server
 CMD ["/bin/bash", "/usr/local/bin/postgresql.sh"]

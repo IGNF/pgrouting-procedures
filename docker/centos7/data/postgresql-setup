@@ -4,7 +4,7 @@
 
 # PGVERSION is the full package version, e.g., 9.4.0
 # Note: the specfile inserts the correct value during package build
-PGVERSION=10.6
+PGVERSION=10.7
 # PGMAJORVERSION is major version, e.g., 9.4 (this should match PG_VERSION)
 PGMAJORVERSION=10
 # PGENGINE is the directory containing the postmaster executable
@@ -62,7 +62,7 @@ perform_initdb(){
     initdbcmd="$PGENGINE/initdb --pgdata='$PGDATA' --auth='ident'"
     initdbcmd+=" $PGSETUP_INITDB_OPTIONS"
 
-    $SU -l postgres -c "$initdbcmd" >> "$PGLOG" 2>&1 < /dev/null
+    $SU -l postgres -c "$initdbcmd" # >> "$PGLOG" 2>&1 < /dev/null
 
     # Create directory for postmaster log files
     mkdir "$PGDATA/pg_log"
