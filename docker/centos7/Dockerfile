@@ -54,7 +54,7 @@ RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
 
 # Set volume
 VOLUME ["/var/lib/pgsql"]
-
+USER postgres
 # Run PostgreSQL Server
 CMD ["/bin/bash", "/usr/local/bin/postgresql.sh"]
 
