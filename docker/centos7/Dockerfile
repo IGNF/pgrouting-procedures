@@ -45,6 +45,7 @@ RUN /usr/pgsql-10.7/bin/postgresql106-setup initdb -d
 COPY docker/centos7/data/postgresql.conf /var/lib/pgsql/10/data/postgresql.conf
 COPY docker/centos7/data/pg_hba.conf /var/lib/pgsql/10/data/pg_hba.conf
 COPY docker/centos7/data/postgresql.sh /usr/local/bin/postgresql.sh
+COPY docker/centos7/data/create_dbuser.sh /usr/local/bin/create_dbuser.sh
 
 # Modification du pg_hba.conf pour accepter les connexions depuis les ip données en paramètre du build
 RUN echo "host    all             all             $ipRange            trust" >> /var/lib/pgsql/10/data/pg_hba.conf
@@ -54,17 +55,17 @@ RUN touch /etc/sudoers
 RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
     usermod -G wheel postgres && \
     sed -i 's/.*requiretty$/#Defaults requiretty/' /etc/sudoers && \
-    chmod +x /usr/local/bin/postgresql.sh
-
-# TODO:séparer le script en deux pour créer les bases ici et démarer le serveur dans CMD 
-RUN DB_NAME=pivot DB_USER=postgres postgresql.sh
-RUN DB_NAME=pgrouting DB_USER=postgres postgresql.sh
-
-# Set volume
-VOLUME ["/var/lib/pgsql"]
+    chmod +x /usr/local/bin/postgresql.sh && \
+    chmod +x /usr/local/bin/create_dbuser.sh
 
 #Set user
 USER postgres
+
+RUN DB_NAME=pivot create_dbuser.sh
+RUN DB_NAME=pgrouting create_dbuser.sh
+
+# Set volume
+VOLUME ["/var/lib/pgsql"]
 
 # Run PostgreSQL Server
 CMD ["postgresql.sh"]

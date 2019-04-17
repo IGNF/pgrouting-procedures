@@ -8,11 +8,11 @@ $$ LANGUAGE SQL ;
 
 -- Dijskstra entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_dijkstra(lon1 double precision,  -- longitude du 1er point
-                                           lat1 double precision, -- latitude du 1er point
-                                           lon2 double precision, -- longitude du 2nd point
-                                           lat2 double precision, -- latitude du 2nd point
-                                           costname text,         -- nom de la colonne du coût
-                                           rcostname text)        -- nom de la colonne de coût inverse
+                                          lat1 double precision, -- latitude du 1er point
+                                          lon2 double precision, -- longitude du 2nd point
+                                          lat2 double precision, -- latitude du 2nd point
+                                          costname text,         -- nom de la colonne du coût
+                                          rcostname text)        -- nom de la colonne de coût inverse
   RETURNS TABLE (
     seq int,                    -- index absolu de l'étape (commence à 1)
     path_seq int,               -- index relatif entre 2 waypoints de l'étape (commence à 1)
