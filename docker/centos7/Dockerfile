@@ -1,6 +1,7 @@
 FROM centos:7.5.1804
 
-ARG proxy="http://proxy.ign.fr:3128/"
+ARG proxy=""
+ARG ipRange=""
 
 ENV http_proxy=$proxy https_proxy=$proxy HTTP_PROXY=$proxy HTTPS_PROXY=$proxy
 
@@ -45,6 +46,9 @@ COPY docker/centos7/data/postgresql.conf /var/lib/pgsql/10/data/postgresql.conf
 COPY docker/centos7/data/pg_hba.conf /var/lib/pgsql/10/data/pg_hba.conf
 COPY docker/centos7/data/postgresql.sh /usr/local/bin/postgresql.sh
 
+# Modification du pg_hba.conf pour accepter les connexions depuis les ip données en paramètre du build
+RUN echo "host    all             all             $ipRange            trust" >> /var/lib/pgsql/10/data/pg_hba.conf
+
 RUN touch /etc/sudoers
 # Change own user
 RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
@@ -52,11 +56,18 @@ RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
     sed -i 's/.*requiretty$/#Defaults requiretty/' /etc/sudoers && \
     chmod +x /usr/local/bin/postgresql.sh
 
+# TODO:séparer le script en deux pour créer les bases ici et démarer le serveur dans CMD 
+RUN DB_NAME=pivot DB_USER=postgres postgresql.sh
+RUN DB_NAME=pgrouting DB_USER=postgres postgresql.sh
+
 # Set volume
 VOLUME ["/var/lib/pgsql"]
+
+#Set user
 USER postgres
+
 # Run PostgreSQL Server
-CMD ["/bin/bash", "/usr/local/bin/postgresql.sh"]
+CMD ["postgresql.sh"]
 
 # Expose ports.
 EXPOSE 5432

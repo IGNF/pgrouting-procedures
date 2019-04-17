@@ -1,8 +1,9 @@
-# Dockerfile pour utiliser Road2 sous CentOS
+# Dockerfile pour utiliser PGRouting-procedures sous CentOS
 
 # Configuration de l'image (connection à pgsql)
 
-Pour configurer le mode d'accès à la base pgsql du container, modifier la fin du fichier data/pg_hba.conf pour pouvoir se connecter au serveur de base de données depuis l'extérieur (se référer à la documentation de postgresql pour plus de détails)
+Pour configurer le mode d'accès à la base pgsql du container, modifier la fin du fichier data/pg_hba.conf pour pouvoir se connecter au serveur de base de données depuis l'extérieur (se référer à la documentation de postgresql pour plus de détails).
+Lors de la construction de l'image, il est possible de spécifier l'ensemble des ip qui auront accès à la base.
 
 # Construction de l'image
 
@@ -12,10 +13,11 @@ docker build -t centos-pgrouting -f docker/centos/Dockerfile .
 ```
 
 Les éléments suivants peuvent être spécifiés:
-- Proxy
+- Proxy (ex. "http://proxy:3128")
+- ipRange (ex. "10.10.0.0/24")
 
 ```
-docker build -t centos-pgrouting --build-arg proxy=$proxy -f docker/centos/Dockerfile .
+docker build -t centos-pgrouting --build-arg proxy=$proxy --build-arg ipRange=$iprange -f docker/centos/Dockerfile .
 ```
 
 # Lancer le serveur de base de données :
