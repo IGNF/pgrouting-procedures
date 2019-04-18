@@ -55,6 +55,7 @@ create_dbuser() {
     echo "Adding postgis and pgrouting extentions to \"${DB_NAME}\"..."
     $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION postgis"
     $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION pgrouting"
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION postgres_fdw"
     # grant permission
     if [ -n "${DB_USER}" ]; then
       echo "Granting access to database \"${DB_NAME}\" for user \"${DB_USER}\"..."
