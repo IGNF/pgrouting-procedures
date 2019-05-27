@@ -42,7 +42,8 @@ add_procedures() {
             maxspeed_forward double precision,
             maxspeed_backward double precision,
             priority double precision DEFAULT 1,
-            the_geom geometry(Linestring,4326)
+            the_geom geometry(Linestring,4326),
+            way_names text
         );"
     $PSQL ${DB_NAME} -U $PG_USER -c "CREATE TABLE ways_vertices_pgr(
             id bigserial unique,
