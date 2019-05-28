@@ -51,7 +51,7 @@ add_procedures() {
             chk int,
             ein int,
             eout int,
-            the_geom geometry(Linestring,4326)
+            the_geom geometry(Point,4326)
         );"
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/dijkstra.sql
 
