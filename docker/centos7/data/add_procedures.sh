@@ -53,7 +53,7 @@ add_procedures() {
             eout int,
             the_geom geometry(Point,4326)
         );"
-    $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/dijkstra.sql
+    $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/procedures.sql
 
     # stop postgresql server
     bash -c "$PG_CTL -D $PG_CONFDIR -m fast -w stop"
