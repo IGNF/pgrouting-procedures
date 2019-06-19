@@ -1,6 +1,6 @@
 # Procédures pour PgRouting
 
-Ce projet contient plusieurs prodécures SQL utilisables avec PgRouting.
+Ce projet contient plusieurs procédures SQL utilisables avec PgRouting.
 
 ## Installation des fonctions sur une base de données
 

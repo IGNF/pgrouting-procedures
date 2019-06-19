@@ -24,19 +24,19 @@ docker build -t centos-pgrouting --build-arg proxy=$proxy --build-arg ipRange=$i
 
 Pour lancer le serveur une première fois (et ainsi créer une base de données avec les extensions postgis et pgrouting), il faut spécifier un utilisateur, un mot de passe et un nom de base de données :
 ```
-docker run -d -p 5432:5432 -v /home/amaury/pgrouting-procedures/data:/var/lib/pgsql/data --name pgrouting --env 'DB_USER=amaury' --env 'DB_PASS=test' --env 'DB_NAME=routing' centos-pgrouting
+docker run -d -p 5432:5432 -v /home/user/pgrouting-procedures/data:/var/lib/pgsql/data --name pgrouting --env 'DB_USER=user' --env 'DB_PASS=pass' --env 'DB_NAME=routing' centos-pgrouting
 ```
 
 S'il ne faut pas créer de base de données, la commande suivante suffira :
 ```
-docker run -d -p 5432:5432 -v /home/amaury/pgrouting-procedures/data:/var/lib/pgsql/data --name pgrouting centos-pgrouting
+docker run -d -p 5432:5432 -v /home/user/pgrouting-procedures/data:/var/lib/pgsql/data --name pgrouting centos-pgrouting
 ```
 
 # Se connecter au serveur de base de données via psql
 
 On pourra se connecter à la base de données créée plus haut via cette commande (lancée depuis la machine hôte) :
 ```
-psql routing -U amaury -h $(docker inspect --format {{.NetworkSettings.IPAddress}} pgrouting)
+psql routing -U user -h $(docker inspect --format {{.NetworkSettings.IPAddress}} pgrouting)
 ```
 
 Si aucune base de données n'a été créée, lancer alors cette commande :
@@ -50,7 +50,7 @@ Dans les 2 cas, le client en ligne de commandes sera lancé localement sur le se
 
 Tant que le conteneur est en état de marche, on pourra se connecter à la base de données. Exemple d'utilisation en utilisant osm2pgrouting :
 ```
-osm2pgrouting -f corse-latest.osm -d routing -U amaury -h $(docker inspect --format {{.NetworkSettings.IPAddress}} pgrouting)
+osm2pgrouting -f corse-latest.osm -d routing -U user -h $(docker inspect --format {{.NetworkSettings.IPAddress}} pgrouting)
 ```
 
 ## Arrêter et relancer le serveur
