@@ -135,6 +135,7 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
     node_lon double precision,  -- longitude du node (seulement si waypoint)
     node_lat double precision   -- latitude du node (seulement si waypoint)
     ) AS $$
+  #variable_conflict use_column
   BEGIN
     RETURN QUERY SELECT path.seq as seq,
       -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
