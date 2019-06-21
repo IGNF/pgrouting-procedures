@@ -1,0 +1,48 @@
+version: "3.7"
+
+services:
+  pgr-performance:
+    build:
+      context: ../..
+      dockerfile: ./docker/performance/Dockerfile
+      args:
+        - dnsIP=${dns_ip}
+        - dnsHost=${dns_host}
+        - proxy=${proxy}
+    image: pgr-performance
+    container_name: pgr-performance-test
+    volumes:
+      - ${scripts}:/home/docker/scripts
+    # depends_on:
+    #   - pgrouting-procedures-centos
+    networks:
+      - iti-network
+    secrets:
+      - db_config
+
+  # pgrouting-procedures-centos:
+  #   build:
+  #     context: ../..
+  #     dockerfile: ./docker/centos7/Dockerfile
+  #     args:
+  #       - proxy=${proxy}
+  #       - ipRange=${iprange}
+  #   image: pgrouting-procedures-centos
+  #   container_name: pgrouting-procedures-centos-server
+  #   expose:
+  #     - 5432
+  #   networks:
+  #     - iti-network
+
+networks:
+  iti-network:
+    name: iti-network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: ${iprange}
+
+secrets:
+  db_config:
+    file: ${db_config_file}
