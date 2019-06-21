@@ -187,7 +187,7 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       WHEN 'astar' THEN
         IF array_length(coordinatesTable, 1) > 2 THEN
           coord_couples_table := coordTableToCoordCouplesTable(coordinatesTable);
-          FOREACH m SLICE 1 in ARRAY coord_couples_table
+          FOREACH m SLICE 2 in ARRAY coord_couples_table
           LOOP
             RETURN QUERY SELECT * FROM coord_astar(m,costname,rcostname) ;
           END LOOP;
