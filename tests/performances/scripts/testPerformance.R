@@ -31,7 +31,7 @@ mesures <- c("numeric", nbRequest)
 for ( i in seq(1, nbRequest) ) {
 
   # Écriture de la commande
-  sqlRequest <- paste("\"SELECT * FROM shortest_path_with_algorithm(ARRAY[[", randomLon[i], ",", randomLat[i], "],[", randomLon[i*2], ",", randomLat[i*2], "]],\'", costColumn, "\',\'", reverseCostColumn, "\',\'", algorithm, "\')\"", sep=" ")
+  sqlRequest <- paste("\"SELECT * FROM shortest_path_with_algorithm(ARRAY[[", randomLon[i], ",", randomLat[i], "],[", randomLon[i*2], ",", randomLat[i*2], "]],\'", costColumn, "\',\'", reverseCostColumn, "\',\'", algorithm, "\',ARRAY[\'name\'])\"", sep=" ")
   # print(sqlRequest)
   sysCmd <- paste("psql", dbInfo$database, "-U", dbInfo$user, "-h", dbInfo$host, "-c", sqlRequest, sep=" ")
   print(paste(i, sysCmd, sep=" "))
