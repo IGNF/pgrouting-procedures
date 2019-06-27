@@ -80,7 +80,7 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
                           FROM pgr_dijkstraVia($1, coordTableToVIDTable($2)) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
                           -- Jointure uniquement si début de trajet entre 2 waypoints ou si dernière étape
-                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.node = nodes.id) AND (path.path_seq = 1 OR path.edge=-1)
+                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.node = nodes.id) AND (path.path_seq = 1 OR path.edge<0)
                           ORDER BY seq'
                   );
     -- --
@@ -132,7 +132,7 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
                           FROM pgr_aStar($1, $2, $3, true) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
                           -- Jointure uniquement si début de trajet entre 2 waypoints ou si dernière étape
-                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.node = nodes.id) AND (path.path_seq = 1 OR path.edge=-1)
+                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.node = nodes.id) AND (path.path_seq = 1 OR path.edge<0)
                           ORDER BY seq'
                   );
     -- --
@@ -251,6 +251,6 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       ELSE
         RETURN QUERY SELECT * FROM coord_dijkstra(coordinatesTable,costname,rcostname,attributes_query) ;
     END CASE;
-    -- -- 
+    -- --
   END ;
 $$ LANGUAGE 'plpgsql' ;
