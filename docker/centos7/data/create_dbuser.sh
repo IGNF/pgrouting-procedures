@@ -50,8 +50,8 @@ create_dbuser() {
 
     # create database
     echo "Creating database \"${DB_NAME}\"..."
-    echo "CREATE DATABASE ${DB_NAME};"
-    $PSQL -U $PG_USER -c "CREATE DATABASE ${DB_NAME}"
+    echo "CREATE DATABASE ${DB_NAME} WITH ENCODING 'UTF8' TEMPLATE template0;"
+    $PSQL -U $PG_USER -c "CREATE DATABASE ${DB_NAME} WITH ENCODING 'UTF8' TEMPLATE template0"
     echo "Adding postgis and pgrouting extentions to \"${DB_NAME}\"..."
     $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION postgis"
     $PSQL ${DB_NAME} -U $PG_USER -c "CREATE EXTENSION pgrouting"
