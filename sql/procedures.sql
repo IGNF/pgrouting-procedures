@@ -2,14 +2,14 @@
 ----------------------------------------------------------------------------------------------------
 
 -- Noeud du graphe le plus proche d'un couple de cordonnées
-CREATE OR REPLACE FUNCTION nearest_node(lon1 double precision, lat1 double precision) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION nearest_node(lon double precision, lat double precision) RETURNS integer AS $$
   DECLARE
     result integer;
   BEGIN
     SELECT INTO result id::integer
     FROM ways_vertices_pgr
-    WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon1,lat1),4326)),Geography(the_geom),1000)
-    ORDER BY the_geom <-> st_setsrid(st_makepoint(lon1,lat1),4326)
+    WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+    ORDER BY the_geom <-> st_setsrid(st_makepoint(lon,lat),4326)
     LIMIT 1 ;
     RETURN result ;
   END ;
@@ -17,14 +17,14 @@ $$ LANGUAGE 'plpgsql' ;
 
 
 -- Arc du graphe le plus proche d'un couple de cordonnées
-CREATE OR REPLACE FUNCTION nearest_edge(lon1 double precision, lat1 double precision) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION nearest_edge(lon double precision, lat double precision) RETURNS integer AS $$
   DECLARE
     result integer;
   BEGIN
-    SELECT INTO result id::integerq
+    SELECT INTO result id::integer
     FROM ways
-    -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon1,lat1),4326)),Geography(the_geom),1000)
-    ORDER BY the_geom <-> st_setsrid(st_makepoint(lon1,lat1),4326)
+    -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+    ORDER BY the_geom <-> st_setsrid(st_makepoint(lon,lat),4326)
     LIMIT 1 ;
     RETURN result ;
   END ;
@@ -65,9 +65,59 @@ CREATE OR REPLACE FUNCTION coordTableToVIDTable(coordinatesTable double precisio
   END ;
 $$ LANGUAGE 'plpgsql' ;
 
+-- Conversion de coordinatesTable vers edgeIdTable
+CREATE OR REPLACE FUNCTION coordTableToEIDTable(coordinatesTable double precision[][]) RETURNS integer[] AS $$
+  DECLARE
+    i integer;
+    result integer[] DEFAULT '{}';
+    edgeId integer;
+  BEGIN
+    FOR i in 1 .. array_upper(coordinatesTable, 1)
+    LOOP
+      edgeId := nearest_edge(coordinatesTable[i][1], coordinatesTable[i][2]) ;
+      result := array_append(result, edgeId) ;
+    END LOOP;
+    RETURN result;
+  END ;
+$$ LANGUAGE 'plpgsql' ;
+
+
+-- Conversion de coordinatesTable vers fractionTable
+CREATE OR REPLACE FUNCTION coordTableToFractionTable(coordinatesTable double precision[][]) RETURNS float[] AS $$
+  DECLARE
+    i integer;
+    frac float;
+    result float[] DEFAULT '{}';
+    edgeIdTable integer[];
+    lon double precision;
+    lat double precision;
+  BEGIN
+    edgeIdTable := coordTableToEIDTable(coordinatesTable);
+    FOR i in 1 .. array_upper(edgeIdTable, 1)
+    LOOP
+      lon := coordinatesTable[i][1] ;
+      lat := coordinatesTable[i][2] ;
+      frac := ST_LineLocatePoint( (SELECT the_geom FROM ways WHERE id=edgeIdTable[i]), st_setsrid(st_makepoint(lon,lat),4326)  ) ;
+      result := array_append(result, frac) ;
+    END LOOP;
+    RETURN result;
+  END ;
+$$ LANGUAGE 'plpgsql' ;
+
+
+-- Point sur une linestring à partir d'un point pas dans le graphe
+CREATE OR REPLACE FUNCTION projectedPoint(lon double precision, lat double precision) RETURNS geometry AS $$
+  DECLARE
+    road_geom geometry;
+  BEGIN
+    SELECT INTO road_geom the_geom FROM ways WHERE id=nearest_edge(lon, lat);
+    RETURN ST_LineInterpolatePoint(road_geom, ST_LineLocatePoint(road_geom, st_setsrid(st_makepoint(lon,lat),4326))) ;
+  END ;
+$$ LANGUAGE 'plpgsql' ;
+
 
 -- Conversion de coordinatesTable vers centroid
-CREATE OR REPLACE FUNCTION coordTableCentroid(coordinatesTable double precision[][]) RETURNS geography AS $$
+CREATE OR REPLACE FUNCTION coordTableCentroid(coordinatesTable double precision[][]) RETURNS geometry AS $$
   DECLARE
     i integer;
     multigeom geometry;
@@ -84,7 +134,7 @@ CREATE OR REPLACE FUNCTION coordTableCentroid(coordinatesTable double precision[
       lat := coordinatesTable[i][2] ;
       multigeom := ST_Union(multigeom, st_setsrid(st_makepoint(lon,lat),4326)) ;
     END LOOP ;
-    result := ST_Centroid(Geography(multigeom)) ;
+    result := ST_Centroid(Geography(multigeom))::geometry ;
     RETURN result;
   END;
 $$ LANGUAGE 'plpgsql' ;
@@ -151,7 +201,12 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     -- --
     -- -- requete sql complete
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
-                            path.cost, path.agg_cost, ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
+                            path.cost, path.agg_cost,
+                            CASE
+                              WHEN path.edge > 0 THEN ST_AsGeoJSON(ways.the_geom)
+                              ELSE ST_AsGeoJSON(ST_LineMerge(ST_Union(ways.the_geom) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) ))
+                            END,
+                            ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
                           FROM pgr_dijkstraVia($1, coordTableToVIDTable($2)) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
@@ -220,7 +275,7 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
   END;
 $$ LANGUAGE 'plpgsql' ;
 
--- trsp entre lat1 lon1 et lat2 lon2
+-- trsp (vertices) entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
                                       costname text,         -- nom de la colonne du coût
                                       rcostname text,        -- nom de la colonne de coût inverse
@@ -254,14 +309,13 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
     -- des autres fonctions : pas de path_seq mais un id de la route => on utilise *-1
-    final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id1 as node,
-                            path.id2 as edge, path.cost as cost,
+    final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
+                            path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
                           FROM pgr_trspViaVertices($1, coordTableToVIDTable($2), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
-                          -- Jointure uniquement si début de trajet entre 2 waypoints ou si dernière étape
                           LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
                           ORDER BY seq'
                   );
@@ -271,6 +325,62 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
       USING graph_query, coordinatesTable;
   END;
 $$ LANGUAGE 'plpgsql' ;
+
+
+-- trsp (edges) entre lat1 lon1 et lat2 lon2
+CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                      costname text,         -- nom de la colonne du coût
+                                      rcostname text,        -- nom de la colonne de coût inverse
+                                      waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
+                                      where_clause text      -- clause WHERE pour la sélection d'une partie du graphe pour le routing
+                                    )
+  RETURNS TABLE (
+    seq int,                    -- index absolu de l'étape (commence à 1)
+    path_seq int,               -- index relatif entre 2 waypoints de l'étape (commence à 1)
+    node int,                -- id du node de départ
+    edge int,                -- id de l'edge parcouru
+    cost double precision,      -- coût du tronçon
+    agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
+    geom_json text,             -- géométrie en geojson de l'edge
+    node_lon double precision,  -- longitude du node (seulement si waypoint)
+    node_lat double precision,  -- latitude du node (seulement si waypoint)
+    edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+    ) AS $$
+  #variable_conflict use_column
+  DECLARE
+  graph_query text;
+  final_query text;
+  BEGIN
+    -- création de la requete SQL
+    -- -- requete pour avoir le graphe
+    graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
+      rcostname,' AS reverse_cost FROM ways',
+      where_clause
+    );
+    -- --
+    -- -- requete sql complete
+    -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
+    -- des autres fonctions : pas de path_seq mais un id de la route => on utilise *-1
+    final_query := concat('WITH toto as (
+                              SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
+                                path.id3 as edge, path.cost as cost,
+                                SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
+                                ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
+                                ST_Y(nodes.the_geom), ', waysAttributesQuery,'
+                              FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
+                              LEFT JOIN ways ON (path.id3 = ways.id)
+                              LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
+                              ORDER BY seq
+                            )
+                            '
+                  );
+    -- --
+    -- Execution de la requete
+    RETURN QUERY EXECUTE final_query
+      USING graph_query, coordinatesTable;
+  END;
+$$ LANGUAGE 'plpgsql' ;
+
 
 
 
