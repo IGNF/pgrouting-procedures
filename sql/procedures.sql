@@ -203,8 +203,8 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
                             path.cost, path.agg_cost,
                             CASE
-                              WHEN path.edge > 0 THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_LineMerge(ST_Union(ways.the_geom) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) ))
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
                             END,
                             ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
@@ -260,7 +260,12 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
     -- --
     -- -- requete sql complete
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
-                            path.cost, path.agg_cost, ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
+                            path.cost, path.agg_cost,
+                            CASE
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                            END,
+                            ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
                           FROM pgr_aStar($1, $2, $3, true) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
@@ -312,7 +317,11 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
     final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
-                            ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
+                            CASE
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                            END,
+                            ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
                           FROM pgr_trspViaVertices($1, coordTableToVIDTable($2), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
@@ -361,18 +370,18 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
     -- des autres fonctions : pas de path_seq mais un id de la route => on utilise *-1
-    final_query := concat('WITH toto as (
-                              SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
-                                path.id3 as edge, path.cost as cost,
-                                SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
-                                ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
-                                ST_Y(nodes.the_geom), ', waysAttributesQuery,'
-                              FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
-                              LEFT JOIN ways ON (path.id3 = ways.id)
-                              LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
-                              ORDER BY seq
-                            )
-                            '
+    final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
+                            path.id3 as edge, path.cost as cost,
+                            SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
+                            CASE
+                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                            END,
+                            ', waysAttributesQuery,'
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
+                          LEFT JOIN ways ON (path.id3 = ways.id)
+                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
+                          ORDER BY seq'
                   );
     -- --
     -- Execution de la requete
@@ -424,6 +433,9 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
     ELSIF array_upper(waysAttributes, 1) = 1
     THEN
       attributes_query := concat('ways.',waysAttributes[1]);
+    ELSIF waysAttributes = '{}'
+    THEN
+      attributes_query := 'null';
     ELSE
       RAISE 'waysAttributes invalid';
     END IF;
