@@ -338,6 +338,7 @@ $$ LANGUAGE 'plpgsql' ;
 
 -- trsp (edges) entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                      profile_name text,     -- nom du profil utilisé
                                       costname text,         -- nom de la colonne du coût
                                       rcostname text,        -- nom de la colonne de coût inverse
                                       waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
@@ -351,8 +352,8 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
     cost double precision,      -- coût du tronçon
     agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
     geom_json text,             -- géométrie en geojson de l'edge
-    node_lon double precision,  -- longitude du node (seulement si waypoint)
-    node_lat double precision,  -- latitude du node (seulement si waypoint)
+    distance double precision, -- longueur du tronçon
+    duration double precision,      -- durée du tronçon
     edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
     ) AS $$
   #variable_conflict use_column
@@ -376,10 +377,20 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             CASE
                               WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
                               ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
-                            END,
-                            ST_X(nodes.the_geom),
-                            ST_Y(nodes.the_geom),
-                            ', waysAttributesQuery,'
+                            END,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                            END as duration,',
+                            waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
                           LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
@@ -393,13 +404,12 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
 $$ LANGUAGE 'plpgsql' ;
 
 
-
-
 -- Fonction finale, point d'entrée
 ----------------------------------------------------------------------------------------------------
 
 -- fonction qui choisit la bonne fonction à executer
 CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                                        profile_name text,     -- nom du profil utilisé
                                                         costname text,         -- nom de la colonne du coût
                                                         rcostname text,        -- nom de la colonne de coût inverse
                                                         algo text,             -- algorithme à utiliser
@@ -411,10 +421,10 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       node int,                -- id du node de départ
       edge int,                -- id de l'edge parcouru
       cost double precision,      -- coût du tronçon
-      agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
+      agg_cost double precision,  -- coût aggrégé
       geom_json text,             -- géométrie en geojson de l'edge
-      node_lon double precision,  -- longitude du node (seulement si waypoint)
-      node_lat double precision,  -- latitude du node (seulement si waypoint)
+      distance double precision, -- longueur du tronçon
+      duration double precision,      -- durée du tronçon
       edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
       ) AS $$
   DECLARE
@@ -463,9 +473,9 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
           RETURN QUERY SELECT * FROM coord_astar(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
         END IF;
       WHEN 'trsp' THEN
-        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
       ELSE
-        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     END CASE;
     -- --
   END ;
