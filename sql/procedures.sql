@@ -203,8 +203,8 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
                             path.cost, path.agg_cost,
                             CASE
-                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,
                             ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
@@ -262,8 +262,8 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
                             path.cost, path.agg_cost,
                             CASE
-                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,
                             ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
@@ -318,8 +318,8 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             CASE
-                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,
                             ST_X(nodes.the_geom),
                             ST_Y(nodes.the_geom), ', waysAttributesQuery,'
@@ -374,9 +374,11 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             CASE
-                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom))
+                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,
+                            ST_X(nodes.the_geom),
+                            ST_Y(nodes.the_geom),
                             ', waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
@@ -440,11 +442,11 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       RAISE 'waysAttributes invalid';
     END IF;
 
-    where_clause := concat(' WHERE the_geom @ ( SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
       1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
       ') )'
     );
-
+    -- where_clause := '';
     -- --
     -- -- choix de l'algo
     CASE algo
@@ -461,40 +463,10 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
           RETURN QUERY SELECT * FROM coord_astar(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
         END IF;
       WHEN 'trsp' THEN
-        RETURN QUERY SELECT * FROM coord_trspVertices(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
       ELSE
-        RETURN QUERY SELECT * FROM coord_dijkstra(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
     END CASE;
     -- --
   END ;
 $$ LANGUAGE 'plpgsql' ;
-
--- Pour la retrocompatibilité avec le master de road2
--- TODO: supprimer !
-CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
-                                                        costname text,         -- nom de la colonne du coût
-                                                        rcostname text,        -- nom de la colonne de coût inverse
-                                                        algo text
-                                                        )
-  RETURNS TABLE (
-      seq int,                    -- index absolu de l'étape (commence à 1)
-      path_seq int,               -- index relatif entre 2 waypoints de l'étape (commence à 1)
-      node int,                -- id du node de départ
-      edge int,                -- id de l'edge parcouru
-      cost double precision,      -- coût du tronçon
-      agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
-      geom_json text,             -- géométrie en geojson de l'edge
-      node_lon double precision,  -- longitude du node (seulement si waypoint)
-      node_lat double precision,  -- latitude du node (seulement si waypoint)
-      edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
-      ) AS $$
-  BEGIN
-    RETURN QUERY SELECT * FROM shortest_path_with_algorithm(coordinatesTable, -- table des points dans l'ordre de parcours
-                                                          costname ,         -- nom de la colonne du coût
-                                                          rcostname ,        -- nom de la colonne de coût inverse
-                                                          algo,
-                                                          array ['way_names']
-                                                          ) ;
-  END ;
-
-$$ LANGUAGE 'plpgsql';
