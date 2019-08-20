@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION nearest_node(lon double precision, lat double precisi
   BEGIN
     SELECT INTO result id::integer
     FROM ways_vertices_pgr
-    WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+    -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
     ORDER BY the_geom <-> st_setsrid(st_makepoint(lon,lat),4326)
     LIMIT 1 ;
     RETURN result ;
@@ -171,6 +171,7 @@ $$ LANGUAGE 'plpgsql' ;
 
 -- Dijskstra entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                          profile_name text,     -- nom du profil utilisé
                                           costname text,         -- nom de la colonne du coût
                                           rcostname text,        -- nom de la colonne de coût inverse
                                           waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
@@ -184,9 +185,9 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     cost double precision,      -- coût du tronçon
     agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
     geom_json text,             -- géométrie en geojson de l'edge
-    node_lon double precision,  -- longitude du node (seulement si waypoint)
-    node_lat double precision,  -- latitude du node (seulement si waypoint)
-    edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+    distance double precision, -- longueur du tronçon
+    duration double precision,      -- durée du tronçon
+    edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
     ) AS $$
   DECLARE
     graph_query text;
@@ -203,11 +204,22 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
                             path.cost, path.agg_cost,
                             CASE
-                              WHEN path.edge > 0 THEN ST_AsGeoJSON(ways.the_geom)
-                              ELSE ST_AsGeoJSON(ST_LineMerge(ST_Union(ways.the_geom) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) ))
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,
-                            ST_X(nodes.the_geom),
-                            ST_Y(nodes.the_geom), ', waysAttributesQuery,'
+                            CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                            END as duration,',
+                            waysAttributesQuery,'
                           FROM pgr_dijkstraVia($1, coordTableToVIDTable($2)) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
                           -- Jointure uniquement si début de trajet entre 2 waypoints ou si dernière étape
@@ -223,6 +235,7 @@ $$ LANGUAGE 'plpgsql' ;
 
 -- A* entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours (longueur 2)
+                                       profile_name text,     -- nom du profil utilisé
                                        costname text,         -- nom de la colonne du coût
                                        rcostname text,        -- nom de la colonne de coût inverse
                                        waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
@@ -236,9 +249,9 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
     cost double precision,      -- coût du tronçon
     agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
     geom_json text,             -- géométrie en geojson de l'edge
-    node_lon double precision,  -- longitude du node (seulement si waypoint)
-    node_lat double precision,  -- latitude du node (seulement si waypoint)
-    edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+    distance double precision, -- longueur du tronçon
+    duration double precision,      -- durée du tronçon
+    edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
     ) AS $$
   DECLARE
     vertex_ids_result integer[];
@@ -260,8 +273,24 @@ CREATE OR REPLACE FUNCTION coord_astar(coordinatesTable double precision[][], --
     -- --
     -- -- requete sql complete
     final_query := concat('SELECT path.seq, path.path_seq, path.node::integer, path.edge::integer,
-                            path.cost, path.agg_cost, ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
-                            ST_Y(nodes.the_geom), ', waysAttributesQuery,'
+                            path.cost, path.agg_cost,
+                            CASE
+                              WHEN path.node = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
+                            END,
+                            CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                            END as duration,',
+                            waysAttributesQuery,'
                           FROM pgr_aStar($1, $2, $3, true) AS path
                           LEFT JOIN ways ON (path.edge = ways.id)
                           -- Jointure uniquement si début de trajet entre 2 waypoints ou si dernière étape
@@ -277,6 +306,7 @@ $$ LANGUAGE 'plpgsql' ;
 
 -- trsp (vertices) entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                      profile_name text,     -- nom du profil utilisé
                                       costname text,         -- nom de la colonne du coût
                                       rcostname text,        -- nom de la colonne de coût inverse
                                       waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
@@ -290,9 +320,9 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
     cost double precision,      -- coût du tronçon
     agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
     geom_json text,             -- géométrie en geojson de l'edge
-    node_lon double precision,  -- longitude du node (seulement si waypoint)
-    node_lat double precision,  -- latitude du node (seulement si waypoint)
-    edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+    distance double precision, -- longueur du tronçon
+    duration double precision,      -- durée du tronçon
+    edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
     ) AS $$
   #variable_conflict use_column
   DECLARE
@@ -312,8 +342,23 @@ CREATE OR REPLACE FUNCTION coord_trspVertices(coordinatesTable double precision[
     final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
-                            ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
-                            ST_Y(nodes.the_geom), ', waysAttributesQuery,'
+                            CASE
+                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
+                            END,
+                            CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                            END as duration,',
+                            waysAttributesQuery,'
                           FROM pgr_trspViaVertices($1, coordTableToVIDTable($2), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
                           LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
@@ -329,6 +374,7 @@ $$ LANGUAGE 'plpgsql' ;
 
 -- trsp (edges) entre lat1 lon1 et lat2 lon2
 CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                      profile_name text,     -- nom du profil utilisé
                                       costname text,         -- nom de la colonne du coût
                                       rcostname text,        -- nom de la colonne de coût inverse
                                       waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
@@ -342,9 +388,9 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
     cost double precision,      -- coût du tronçon
     agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
     geom_json text,             -- géométrie en geojson de l'edge
-    node_lon double precision,  -- longitude du node (seulement si waypoint)
-    node_lat double precision,  -- latitude du node (seulement si waypoint)
-    edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+    distance double precision, -- longueur du tronçon
+    duration double precision,      -- durée du tronçon
+    edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
     ) AS $$
   #variable_conflict use_column
   DECLARE
@@ -361,18 +407,30 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
     -- des autres fonctions : pas de path_seq mais un id de la route => on utilise *-1
-    final_query := concat('WITH toto as (
-                              SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
-                                path.id3 as edge, path.cost as cost,
-                                SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
-                                ST_AsGeoJSON(ways.the_geom), ST_X(nodes.the_geom),
-                                ST_Y(nodes.the_geom), ', waysAttributesQuery,'
-                              FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
-                              LEFT JOIN ways ON (path.id3 = ways.id)
-                              LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
-                              ORDER BY seq
-                            )
-                            '
+    final_query := concat('SELECT path.seq as seq, -1 * path.id1 as path_seq, path.id2 as node,
+                            path.id3 as edge, path.cost as cost,
+                            SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
+                            CASE
+                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
+                            END,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
+                            'CASE
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            ' ELSE
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                            END as duration,',
+                            waysAttributesQuery,'
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
+                          LEFT JOIN ways ON (path.id3 = ways.id)
+                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
+                          ORDER BY seq'
                   );
     -- --
     -- Execution de la requete
@@ -382,13 +440,12 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
 $$ LANGUAGE 'plpgsql' ;
 
 
-
-
 -- Fonction finale, point d'entrée
 ----------------------------------------------------------------------------------------------------
 
 -- fonction qui choisit la bonne fonction à executer
 CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+                                                        profile_name text,     -- nom du profil utilisé
                                                         costname text,         -- nom de la colonne du coût
                                                         rcostname text,        -- nom de la colonne de coût inverse
                                                         algo text,             -- algorithme à utiliser
@@ -400,11 +457,11 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       node int,                -- id du node de départ
       edge int,                -- id de l'edge parcouru
       cost double precision,      -- coût du tronçon
-      agg_cost double precision,  -- coût aggrégé (sans le dernier coût)
+      agg_cost double precision,  -- coût aggrégé
       geom_json text,             -- géométrie en geojson de l'edge
-      node_lon double precision,  -- longitude du node (seulement si waypoint)
-      node_lat double precision,  -- latitude du node (seulement si waypoint)
-      edge_attributes text        -- ensemble des attributs à retourner (séparés par des &&)
+      distance double precision, -- longueur du tronçon
+      duration double precision,      -- durée du tronçon
+      edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
       ) AS $$
   DECLARE
     coord_couples_table double precision[][][];
@@ -424,34 +481,37 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
     ELSIF array_upper(waysAttributes, 1) = 1
     THEN
       attributes_query := concat('ways.',waysAttributes[1]);
+    ELSIF waysAttributes = '{}'
+    THEN
+      attributes_query := 'null';
     ELSE
       RAISE 'waysAttributes invalid';
     END IF;
 
-    where_clause := concat(' WHERE the_geom @ ( SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
       1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
       ') )'
     );
-
+    -- where_clause := '';
     -- --
     -- -- choix de l'algo
     CASE algo
       WHEN 'dijkstra' THEN
-        RETURN QUERY SELECT * FROM coord_dijkstra(coordinatesTable,costname,rcostname,attributes_query,where_clause) ;
+        RETURN QUERY SELECT * FROM coord_dijkstra(coordinatesTable,profile_name,costname,rcostname,attributes_query,where_clause) ;
       WHEN 'astar' THEN
         IF array_length(coordinatesTable, 1) > 2 THEN
           coord_couples_table := coordTableToCoordCouplesTable(coordinatesTable);
           FOREACH m SLICE 2 in ARRAY coord_couples_table
           LOOP
-            RETURN QUERY SELECT * FROM coord_astar(m,costname,rcostname,attributes_query, where_clause) ;
+            RETURN QUERY SELECT * FROM coord_astar(m,profile_name,costname,rcostname,attributes_query, where_clause) ;
           END LOOP;
         ELSE
-          RETURN QUERY SELECT * FROM coord_astar(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+          RETURN QUERY SELECT * FROM coord_astar(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
         END IF;
       WHEN 'trsp' THEN
-        RETURN QUERY SELECT * FROM coord_trspVertices(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
       ELSE
-        RETURN QUERY SELECT * FROM coord_dijkstra(coordinatesTable,costname,rcostname,attributes_query, where_clause) ;
+        RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     END CASE;
     -- --
   END ;
