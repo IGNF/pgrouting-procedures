@@ -11,7 +11,7 @@ ENV HOME=/var/lib/pgsql PGDATA=/var/lib/pgsql/10/data
 RUN yum -y update
 RUN yum -y install yum-utils centos-release-scl epel-release
 RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
-RUN yum -y install devtoolset-6
+RUN yum -y install devtoolset-8
 RUN rpm -Uvh https://yum.postgresql.org/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
 RUN yum -y install git cmake3 zlib-devel postgresql10-10.7 postgresql10-server-10.7 postgresql10-libs-10.7 postgresql10-contrib-10.7 postgresql10-devel-10.7
 
@@ -21,10 +21,10 @@ RUN git clone --depth=1 --branch=v2.3.1 https://github.com/OSGeo/gdal.git
 RUN git clone --depth=1 --branch=3.7.0  https://github.com/libgeos/geos.git
 
 # Installation de gdal
-RUN scl enable devtoolset-6 bash && export CC=/opt/rh/devtoolset-6/root/usr/bin/gcc CXX=/opt/rh/devtoolset-6/root/usr/bin/g++ && cd gdal/gdal && ./configure && make && make install
+RUN scl enable devtoolset-8 bash && export CC=/opt/rh/devtoolset-8/root/usr/bin/gcc CXX=/opt/rh/devtoolset-8/root/usr/bin/g++ && cd gdal/gdal && ./configure && make && make install
 
 # Installation de geos
-RUN scl enable devtoolset-6 bash && export CC=/opt/rh/devtoolset-6/root/usr/bin/gcc CXX=/opt/rh/devtoolset-6/root/usr/bin/g++ && cd geos && mkdir build && cd build && cmake3 .. -DENABLE_MASON=ON -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-6/root/usr/bin/g++ && make && make install
+RUN scl enable devtoolset-8 bash && export CC=/opt/rh/devtoolset-8/root/usr/bin/gcc CXX=/opt/rh/devtoolset-8/root/usr/bin/g++ && cd geos && mkdir build && cd build && cmake3 .. -DENABLE_MASON=ON -DCMAKE_CXX_COMPILER=/opt/rh/devtoolset-8/root/usr/bin/g++ && make && make install
 
 # Installation de postgis
 RUN yum -y install postgis25_10-2.5.1
