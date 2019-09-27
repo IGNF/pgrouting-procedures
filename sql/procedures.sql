@@ -17,15 +17,23 @@ $$ LANGUAGE 'plpgsql' ;
 
 
 -- Arc du graphe le plus proche d'un couple de cordonnées
-CREATE OR REPLACE FUNCTION nearest_edge(lon double precision, lat double precision) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION nearest_edge(lon double precision,
+                                        lat double precision,
+                                        costname text,         -- nom de la colonne du coût
+                                        rcostname text        -- nom de la colonne de coût inverse
+                                        )
+  RETURNS integer AS $$
   DECLARE
     result integer;
+    final_query text;
   BEGIN
-    SELECT INTO result id::integer
-    FROM ways
-    -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
-    ORDER BY the_geom <-> st_setsrid(st_makepoint(lon,lat),4326)
-    LIMIT 1 ;
+    final_query := concat('SELECT id::integer
+      FROM ways
+      -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+      WHERE ', costname, ' > 0 OR ', rcostname, ' > 0
+      ORDER BY the_geom <-> st_setsrid(st_makepoint(',lon,',',lat,'),4326)
+      LIMIT 1 ') ;
+    EXECUTE final_query INTO result ;
     RETURN result ;
   END ;
 $$ LANGUAGE 'plpgsql' ;
@@ -66,7 +74,11 @@ CREATE OR REPLACE FUNCTION coordTableToVIDTable(coordinatesTable double precisio
 $$ LANGUAGE 'plpgsql' ;
 
 -- Conversion de coordinatesTable vers edgeIdTable
-CREATE OR REPLACE FUNCTION coordTableToEIDTable(coordinatesTable double precision[][]) RETURNS integer[] AS $$
+CREATE OR REPLACE FUNCTION coordTableToEIDTable(coordinatesTable double precision[][],
+                                                costname text,         -- nom de la colonne du coût
+                                                rcostname text        -- nom de la colonne de coût inverse
+                                                )
+  RETURNS integer[] AS $$
   DECLARE
     i integer;
     result integer[] DEFAULT '{}';
@@ -74,7 +86,7 @@ CREATE OR REPLACE FUNCTION coordTableToEIDTable(coordinatesTable double precisio
   BEGIN
     FOR i in 1 .. array_upper(coordinatesTable, 1)
     LOOP
-      edgeId := nearest_edge(coordinatesTable[i][1], coordinatesTable[i][2]) ;
+      edgeId := nearest_edge(coordinatesTable[i][1], coordinatesTable[i][2], costname, rcostname) ;
       result := array_append(result, edgeId) ;
     END LOOP;
     RETURN result;
@@ -83,7 +95,11 @@ $$ LANGUAGE 'plpgsql' ;
 
 
 -- Conversion de coordinatesTable vers fractionTable
-CREATE OR REPLACE FUNCTION coordTableToFractionTable(coordinatesTable double precision[][]) RETURNS float[] AS $$
+CREATE OR REPLACE FUNCTION coordTableToFractionTable(coordinatesTable double precision[][],
+                                                     costname text,         -- nom de la colonne du coût
+                                                     rcostname text        -- nom de la colonne de coût inverse
+                                                     )
+  RETURNS float[] AS $$
   DECLARE
     i integer;
     frac float;
@@ -92,7 +108,7 @@ CREATE OR REPLACE FUNCTION coordTableToFractionTable(coordinatesTable double pre
     lon double precision;
     lat double precision;
   BEGIN
-    edgeIdTable := coordTableToEIDTable(coordinatesTable);
+    edgeIdTable := coordTableToEIDTable(coordinatesTable, costname, rcostname);
     FOR i in 1 .. array_upper(edgeIdTable, 1)
     LOOP
       lon := coordinatesTable[i][1] ;
@@ -427,7 +443,7 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                                 ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
                             END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2), coordTableToFractionTable($2), true, true) AS path
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''), coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
                           LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
                           ORDER BY seq'
