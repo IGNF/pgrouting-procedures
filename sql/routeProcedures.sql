@@ -173,7 +173,7 @@ CREATE OR REPLACE FUNCTION coord_dijkstra(coordinatesTable double precision[][],
     distance double precision, -- longueur du tronçon
     duration double precision,      -- durée du tronçon
     edge_attributes text        -- ensemble des attributs à retourner (séparés par des §§)
-    ) AS $$
+  ) AS $$
   DECLARE
     graph_query text;
     final_query text;
