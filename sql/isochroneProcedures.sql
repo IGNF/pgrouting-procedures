@@ -28,7 +28,7 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
   where_clause text              -- Clause WHERE (pour ne sélectionner qu'une portion du graphe).
   )
   RETURNS TABLE (
-    geojson text -- Zone de chalandise de l'isochrone.
+    geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
   ) AS $$
   DECLARE
     graph_query text;
@@ -46,7 +46,7 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
     isochrone_query = concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(''''', graph_query, ''''', ', locationToVID(location), ', ', costValue, ') AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id');
 
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query = concat('SELECT ST_AsGeoJSON (ST_SetSRID(pgr_pointsAsPolygon($1), 4326)) AS geojson');
+    final_query = concat('SELECT ST_AsGeoJSON(ST_SetSRID(pgr_pointsAsPolygon($1), 4326))');
 
     RETURN QUERY EXECUTE final_query
     USING isochrone_query;
@@ -62,7 +62,7 @@ CREATE OR REPLACE FUNCTION generateIsochrone(
     rcostColumn text                -- Nom de la colonne du coût inverse.
   )
   RETURNS TABLE (
-    geojson text -- Zone de chalandise de l'isochrone.
+    geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
   ) AS $$
   DECLARE
     where_clause text;
