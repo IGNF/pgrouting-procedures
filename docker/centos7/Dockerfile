@@ -49,7 +49,7 @@ COPY docker/centos7/data/create_dbuser.sh /usr/local/bin/create_dbuser.sh
 COPY docker/centos7/data/add_procedures.sh /usr/local/bin/add_procedures.sh
 
 # Adding sql procedure file
-COPY sql/procedures.sql /usr/local/bin/procedures.sql
+COPY sql/*.sql /usr/local/bin/
 
 # Modification du pg_hba.conf pour accepter les connexions depuis les ip données en paramètre du build
 RUN echo "host    all             all             $ipRange            trust" >> /var/lib/pgsql/10/data/pg_hba.conf

@@ -4,7 +4,7 @@ Ce projet contient plusieurs procédures SQL utilisables avec PgRouting.
 
 ## Installation des fonctions sur une base de données
 
-Pour installer les fontions sql d'un fichier (ici procedures.sql) sur une base de données à l'aide de l'utilitaire `psql` :
+Pour installer les fontions sql d'un fichier (e.g. routeProcedures.sql) sur une base de données à l'aide de l'utilitaire `psql` :
 ```sh
-psql -U user -h host -d db_name -f sql/procedures.sql
+psql -U user -h host -d db_name -f sql/routeProcedures.sql
 ```
