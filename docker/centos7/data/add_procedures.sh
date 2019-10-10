@@ -56,7 +56,8 @@ add_procedures() {
             the_geom geometry(Point,4326)
         );"
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/routeProcedures.sql
-    # $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/isochroneProcedures.sql
+    $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/utilities.sql
+    $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/isochroneProcedures.sql
 
     # stop postgresql server
     bash -c "$PG_CTL -D $PG_CONFDIR -m fast -w stop"
