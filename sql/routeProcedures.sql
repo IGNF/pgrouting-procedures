@@ -179,15 +179,15 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             END,',
                             'CASE
                               WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                            '   ways.cost_m_', profile_name,
                             ' ELSE
-                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
-                            END as distance,',
+                                ways.reverse_cost_m_', profile_name,
+                            'END as distance,',
                             'CASE
                               WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                            '   ways.cost_s_', profile_name,
                             ' ELSE
-                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                                ways.reverse_cost_s_', profile_name,'
                             END as duration,',
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''), coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true) AS path
@@ -251,11 +251,11 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       RAISE 'waysAttributes invalid';
     END IF;
 
-    where_clause := concat(' WHERE the_geom && (SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
-      1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
-      ') )'
-    );
-    -- where_clause := '';
+    -- where_clause := concat(' WHERE the_geom && (SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
+    --   1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
+    --   ') )'
+    -- );
+    where_clause := '';
     -- --
     RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     -- --
