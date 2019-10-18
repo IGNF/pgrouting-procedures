@@ -255,7 +255,8 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
     --   1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
     --   ') )'
     -- );
-    where_clause := '';
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM ways WHERE id = ANY(''', coordTableToEIDTable( coordinatesTable, costname, rcostname ), '''::int[]))');
+    -- where_clause := '';
     -- --
     RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     -- --
