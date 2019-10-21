@@ -182,13 +182,13 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             '   ways.cost_m_', profile_name,
                             ' ELSE
                                 ways.reverse_cost_m_', profile_name,
-                            'END as distance,',
+                            ' END as distance,',
                             'CASE
                               WHEN ways.', costname, ' > 0 THEN',
                             '   ways.cost_s_', profile_name,
                             ' ELSE
                                 ways.reverse_cost_s_', profile_name,'
-                            END as duration,',
+                             END as duration,',
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''), coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
