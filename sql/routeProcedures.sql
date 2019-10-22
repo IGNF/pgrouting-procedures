@@ -174,7 +174,8 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             CASE
-                              WHEN path.id2 = ways.source THEN ST_AsGeoJSON(ways.the_geom,6)
+                              WHEN path.id2 = ways.source OR (LEAD(path.id2) OVER (ORDER BY seq ASC)) = ways.target
+                              THEN ST_AsGeoJSON(ways.the_geom,6)
                               ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,',
                             'CASE
@@ -192,7 +193,6 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''), coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true) AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
-                          LEFT JOIN ways_vertices_pgr AS nodes ON (path.id2 = nodes.id)
                           ORDER BY seq'
                   );
     -- --
