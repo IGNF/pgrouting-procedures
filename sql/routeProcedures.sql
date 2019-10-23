@@ -251,10 +251,6 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
       RAISE 'waysAttributes invalid';
     END IF;
 
-    -- where_clause := concat(' WHERE the_geom && (SELECT ST_Buffer( coordTableCentroid(''', coordinatesTable, ''' ),',
-    --   1.5*farthestDistanceFromCentroid(coordinatesTable, coordTableCentroid(coordinatesTable)),
-    --   ') )'
-    -- );
     where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM ways WHERE id = ANY(''', coordTableToEIDTable( coordinatesTable, costname, rcostname ), '''::int[]))');
     -- where_clause := '';
     -- --
