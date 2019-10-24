@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION nearest_node(lon double precision, lat double precisi
   BEGIN
     SELECT INTO result id::integer
     FROM ways_vertices_pgr
-    -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+    -- WHERE the_geom && (SELECT ST_Expand( ST_Extent(st_setsrid(st_makepoint(lon,lat),4326)),0.01))
     ORDER BY the_geom <-> st_setsrid(st_makepoint(lon, lat), 4326)
     LIMIT 1 ;
     RETURN result;

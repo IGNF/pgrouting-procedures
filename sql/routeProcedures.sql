@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION nearest_edge(lon double precision,
   BEGIN
     final_query := concat('SELECT id::integer
       FROM ways
-      -- WHERE ST_DWithin(Geography(st_setsrid(st_makepoint(lon,lat),4326)),Geography(the_geom),1000)
+      -- WHERE the_geom && (SELECT ST_Expand( ST_Extent(st_setsrid(st_makepoint(',lon,',', lat, '), 4326)), 0.01 ))
       WHERE ', costname, ' > 0 OR ', rcostname, ' > 0
       ORDER BY the_geom <-> st_setsrid(st_makepoint(',lon,',',lat,'),4326)
       LIMIT 1 ') ;
@@ -68,67 +68,6 @@ CREATE OR REPLACE FUNCTION coordTableToFractionTable(coordinatesTable double pre
     END LOOP;
     RETURN result;
   END ;
-$$ LANGUAGE 'plpgsql' ;
-
-
--- Point sur une linestring à partir d'un point pas dans le graphe
-CREATE OR REPLACE FUNCTION projectedPoint(lon double precision, lat double precision) RETURNS geometry AS $$
-  DECLARE
-    road_geom geometry;
-  BEGIN
-    SELECT INTO road_geom the_geom FROM ways WHERE id=nearest_edge(lon, lat);
-    RETURN ST_LineInterpolatePoint(road_geom, ST_LineLocatePoint(road_geom, st_setsrid(st_makepoint(lon,lat),4326))) ;
-  END ;
-$$ LANGUAGE 'plpgsql' ;
-
-
--- Conversion de coordinatesTable vers centroid
-CREATE OR REPLACE FUNCTION coordTableCentroid(coordinatesTable double precision[][]) RETURNS geometry AS $$
-  DECLARE
-    i integer;
-    multigeom geometry;
-    result geography;
-    lon double precision;
-    lat double precision;
-  BEGIN
-    lon := coordinatesTable[1][1] ;
-    lat := coordinatesTable[1][2] ;
-    multigeom := st_setsrid(st_makepoint(lon,lat),4326);
-    FOR i in 2 .. array_upper(coordinatesTable, 1)
-    LOOP
-      lon := coordinatesTable[i][1] ;
-      lat := coordinatesTable[i][2] ;
-      multigeom := ST_Union(multigeom, st_setsrid(st_makepoint(lon,lat),4326)) ;
-    END LOOP ;
-    result := ST_Centroid(Geography(multigeom))::geometry ;
-    RETURN result;
-  END;
-$$ LANGUAGE 'plpgsql' ;
-
-
--- Plus grande distance d'un point de coord table à son centroid
-CREATE OR REPLACE FUNCTION farthestDistanceFromCentroid(coordinatesTable double precision[][], centroid geography) RETURNS double precision AS $$
-  DECLARE
-    i integer;
-    dist double precision;
-    result double precision;
-    lon double precision;
-    lat double precision;
-  BEGIN
-    lon := coordinatesTable[1][1] ;
-    lat := coordinatesTable[1][2] ;
-    result := ST_Distance(st_setsrid(st_makepoint(lon,lat),4326), centroid::geometry) ;
-    FOR i in 2 .. array_upper(coordinatesTable, 1)
-    LOOP
-      lon := coordinatesTable[i][1] ;
-      lat := coordinatesTable[i][2] ;
-      dist := ST_Distance(st_setsrid(st_makepoint(lon,lat),4326), centroid::geometry) ;
-      IF dist > result THEN
-        result := dist;
-      END IF;
-    END LOOP;
-    RETURN result;
-  END;
 $$ LANGUAGE 'plpgsql' ;
 
 
