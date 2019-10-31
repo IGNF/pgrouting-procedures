@@ -48,8 +48,8 @@ COPY docker/centos7/data/postgresql.sh /usr/local/bin/postgresql.sh
 COPY docker/centos7/data/create_dbuser.sh /usr/local/bin/create_dbuser.sh
 COPY docker/centos7/data/add_procedures.sh /usr/local/bin/add_procedures.sh
 
-# Adding sql procedure file
-COPY sql/*.sql /usr/local/bin/
+# Adding template sql procedure file
+COPY sql_templates/*.sh /usr/local/bin/
 
 # Modification du pg_hba.conf pour accepter les connexions depuis les ip données en paramètre du build
 RUN echo "host    all             all             $ipRange            trust" >> /var/lib/pgsql/10/data/pg_hba.conf
@@ -57,11 +57,16 @@ RUN echo "host    all             all             $ipRange            trust" >> 
 RUN touch /etc/sudoers
 # Change own user
 RUN chown -R postgres:postgres /var/lib/pgsql/10/data/* && \
+    chown postgres:postgres /usr/local/bin/ && \
     usermod -G wheel postgres && \
     sed -i 's/.*requiretty$/#Defaults requiretty/' /etc/sudoers && \
     chmod +x /usr/local/bin/postgresql.sh && \
     chmod +x /usr/local/bin/add_procedures.sh && \
-    chmod +x /usr/local/bin/create_dbuser.sh
+    chmod +x /usr/local/bin/create_dbuser.sh && \
+    chmod +x /usr/local/bin/generate_routeProcedures.sh && \
+    chmod +x /usr/local/bin/generate_utilities.sh && \
+    chmod +x /usr/local/bin/generate_isochroneProcedures.sh
+
 
 #Set user
 USER postgres

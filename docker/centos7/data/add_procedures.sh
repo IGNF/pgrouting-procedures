@@ -8,6 +8,8 @@ DB_NAME=${DB_NAME:-}
 DB_USER=${DB_USER:-}
 DB_PASS=${DB_PASS:-}
 
+SCHEMA=${1-'public'}
+
 PG_PORT=5432
 PG_CONFDIR="/var/lib/pgsql/$PG_VERSION/data"
 PG_CTL="/usr/pgsql-$PG_VERSION/bin/pg_ctl"
@@ -23,8 +25,10 @@ add_procedures() {
     # run postgresql server
     cd /var/lib/pgsql && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
 
-    echo "Installing procedures on \"${DB_NAME}\"..."
-    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE TABLE ways(
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE SCHEMA $SCHEMA;"
+
+    echo "Installing procedures on \"${DB_NAME}\" schema $SCHEMA..."
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE TABLE $SCHEMA.ways(
             id bigserial unique,
             tag_id integer,
             length double precision,
@@ -47,7 +51,7 @@ add_procedures() {
             nature text,
             vitesse_moyenne_vl text
         );"
-    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE TABLE ways_vertices_pgr(
+    $PSQL ${DB_NAME} -U $PG_USER -c "CREATE TABLE $SCHEMA.ways_vertices_pgr(
             id bigserial unique,
             cnt int,
             chk int,
@@ -55,6 +59,9 @@ add_procedures() {
             eout int,
             the_geom geometry(Point,4326)
         );"
+    bash /usr/local/bin/generate_routeProcedures.sh $SCHEMA > /usr/local/bin/routeProcedures.sql
+    bash /usr/local/bin/generate_utilities.sh $SCHEMA > /usr/local/bin/utilities.sql
+    bash /usr/local/bin/generate_isochroneProcedures.sh $SCHEMA > /usr/local/bin/isochroneProcedures.sql
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/routeProcedures.sql
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/utilities.sql
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/isochroneProcedures.sql
