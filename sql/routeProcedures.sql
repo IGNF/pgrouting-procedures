@@ -145,13 +145,12 @@ $$ LANGUAGE 'plpgsql' ;
 -- Point d'entrée
 ----------------------------------------------------------------------------------------------------
 
--- TODO: enlever paramètre algo + renommer la fonction
-CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
+CREATE OR REPLACE FUNCTION shortest_path_pgrouting(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
                                                         profile_name text,     -- nom du profil utilisé
                                                         costname text,         -- nom de la colonne du coût
                                                         rcostname text,        -- nom de la colonne de coût inverse
-                                                        algo text,             -- algorithme à utiliser
-                                                        waysAttributes text[]  -- liste des attributs de route à récupérer
+                                                        waysAttributes text[], -- liste des attributs de route à récupérer
+                                                        constraints text       -- contraintes au format SQL
                                                         )
   RETURNS TABLE (
       seq int,                    -- index absolu de l'étape (commence à 1)
@@ -192,6 +191,10 @@ CREATE OR REPLACE FUNCTION shortest_path_with_algorithm(coordinatesTable double 
 
     where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM ways WHERE id = ANY(''', coordTableToEIDTable( coordinatesTable, costname, rcostname ), '''::int[]))');
     -- where_clause := '';
+    IF constraints != ''
+    THEN
+      where_clause := concat(where_clause, ' AND ', constraints);
+    END IF;
     -- --
     RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     -- --
