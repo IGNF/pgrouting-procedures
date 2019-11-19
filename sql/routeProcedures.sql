@@ -105,6 +105,7 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
       rcostname,' AS reverse_cost FROM ways',
       where_clause
     );
+    restrict_sql := 'SELECT -1 as to_cost, id_to as target_id, id_from::text as via_path FROM turn_restrictions';
     -- --
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
@@ -130,14 +131,17 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                                 ways.reverse_cost_s_', profile_name,'
                              END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''), coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true) AS path
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''),
+                            coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true,
+                            $3)
+                          AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
                           ORDER BY seq'
                   );
     -- --
     -- Execution de la requete
     RETURN QUERY EXECUTE final_query
-      USING graph_query, coordinatesTable;
+      USING graph_query, coordinatesTable, restrict_sql;
   END;
 $$ LANGUAGE 'plpgsql' ;
 
