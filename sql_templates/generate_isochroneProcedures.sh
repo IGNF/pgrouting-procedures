@@ -66,7 +66,8 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
     costValue double precision,     -- Valeur du coût.
     direction text,                 -- Sens du parcours.
     costColumn text,                -- Nom de la colonne du coût.
-    rcostColumn text                -- Nom de la colonne du coût inverse.
+    rcostColumn text,                -- Nom de la colonne du coût inverse.
+    constraints text                -- Nom de la colonne du coût inverse.
   )
   RETURNS TABLE (
     geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
@@ -85,6 +86,10 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
       buffer_value := 1;
     END IF;
     where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent( coordToGeom(\$niv3\$', location, '\$niv3\$)),', buffer_value ,'))');
+    IF constraints != ''
+    THEN
+      where_clause := concat(where_clause, ' AND ', constraints);
+    END IF;
 
     RETURN QUERY SELECT * FROM isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
   END;
