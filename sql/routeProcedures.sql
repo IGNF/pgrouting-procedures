@@ -98,6 +98,7 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
   DECLARE
   graph_query text;
   final_query text;
+  restrict_sql text;
   BEGIN
     -- création de la requete SQL
     -- -- requete pour avoir le graphe

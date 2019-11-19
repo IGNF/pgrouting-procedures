@@ -104,6 +104,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
   #variable_conflict use_column
   DECLARE
   graph_query text;
+  restrict_sql text;
   final_query text;
   BEGIN
     -- création de la requete SQL
