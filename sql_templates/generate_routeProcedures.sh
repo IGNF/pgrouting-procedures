@@ -104,14 +104,16 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
   #variable_conflict use_column
   DECLARE
   graph_query text;
+  restrict_sql text;
   final_query text;
   BEGIN
     -- création de la requete SQL
     -- -- requete pour avoir le graphe
     graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
-      rcostname,' AS reverse_cost FROM $SCHEMA.ways',
+      rcostname,' AS reverse_cost FROM ways',
       where_clause
     );
+    restrict_sql := 'SELECT -1 as to_cost, id_to as target_id, id_from::text as via_path FROM $SCHEMA.turn_restrictions';
     -- --
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
@@ -120,31 +122,34 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             CASE
-                              WHEN path.id2 = $SCHEMA.ways.source OR (LEAD(path.id2) OVER (ORDER BY seq ASC)) = $SCHEMA.ways.target
-                              THEN ST_AsGeoJSON($SCHEMA.ways.the_geom,6)
-                              ELSE ST_AsGeoJSON(ST_Reverse($SCHEMA.ways.the_geom),6)
+                              WHEN path.id2 = ways.source OR (LEAD(path.id2) OVER (ORDER BY seq ASC)) = ways.target
+                              THEN ST_AsGeoJSON(ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,',
                             'CASE
-                              WHEN $SCHEMA.ways.', costname, ' > 0 THEN',
-                            '   $SCHEMA.ways.cost_m_', profile_name,
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,
                             ' ELSE
-                                $SCHEMA.ways.reverse_cost_m_', profile_name,
+                                ways.reverse_cost_m_', profile_name,
                             ' END as distance,',
                             'CASE
-                              WHEN $SCHEMA.ways.', costname, ' > 0 THEN',
-                            '   $SCHEMA.ways.cost_s_', profile_name,
+                              WHEN ways.', costname, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,
                             ' ELSE
-                                $SCHEMA.ways.reverse_cost_s_', profile_name,'
+                                ways.reverse_cost_s_', profile_name,'
                              END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges(\$1, coordTableToEIDTable(\$2,''',costname,''',''',rcostname,'''), coordTableToFractionTable(\$2,''',costname,''',''',rcostname,'''), true, true) AS path
-                          LEFT JOIN $SCHEMA.ways ON (path.id3 = $SCHEMA.ways.id)
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''),
+                            coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true,
+                            $3)
+                          AS path
+                          LEFT JOIN ways ON (path.id3 = ways.id)
                           ORDER BY seq'
                   );
     -- --
     -- Execution de la requete
     RETURN QUERY EXECUTE final_query
-      USING graph_query, coordinatesTable;
+      USING graph_query, coordinatesTable, restrict_sql;
   END;
 \$\$ LANGUAGE 'plpgsql' ;
 
