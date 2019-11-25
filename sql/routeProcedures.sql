@@ -106,7 +106,7 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
       rcostname,' AS reverse_cost FROM ways',
       where_clause
     );
-    restrict_sql := 'SELECT -1:: double precision as to_cost, id_to::integer as target_id, id_from::text as via_path FROM turn_restrictions';
+    restrict_sql := 'SELECT -1::double precision as to_cost, id_to::integer as target_id, id_from::text as via_path FROM turn_restrictions';
     -- --
     -- -- requete sql complete
     -- Astuce pour pouvoir détecter le passage a un nouveau waypoint car comportement très différent
