@@ -139,9 +139,9 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                                 ways.reverse_cost_s_', profile_name,'
                              END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,''',costname,''',''',rcostname,'''),
-                            coordTableToFractionTable($2,''',costname,''',''',rcostname,'''), true, true,
-                            $3)
+                          FROM pgr_trspViaEdges(\$1, coordTableToEIDTable(\$2,''',costname,''',''',rcostname,'''),
+                            coordTableToFractionTable(\$2,''',costname,''',''',rcostname,'''), true, true,
+                            \$3)
                           AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
                           ORDER BY seq'
