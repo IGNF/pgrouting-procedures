@@ -128,15 +128,15 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                             END,',
                             'CASE
                               WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_m_', profile_name,
+                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
                             ' ELSE
-                                ways.reverse_cost_m_', profile_name,
-                            ' END as distance,',
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                            END as distance,',
                             'CASE
                               WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_s_', profile_name,
+                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
                             ' ELSE
-                                ways.reverse_cost_s_', profile_name,'
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
                              END as duration,',
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges(\$1, coordTableToEIDTable(\$2,''',costname,''',''',rcostname,'''),
