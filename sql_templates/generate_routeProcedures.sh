@@ -12,7 +12,8 @@ cat  << EOF
 CREATE OR REPLACE FUNCTION $SCHEMA.nearest_edge(lon double precision,
                                         lat double precision,
                                         costname text,         -- nom de la colonne du coût
-                                        rcostname text        -- nom de la colonne de coût inverse
+                                        rcostname text,        -- nom de la colonne de coût inverse
+                                        where_clause text
                                         )
   RETURNS integer AS \$\$
   DECLARE
@@ -21,8 +22,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.nearest_edge(lon double precision,
   BEGIN
     final_query := concat('SELECT id::integer
       FROM $SCHEMA.ways
-      -- WHERE the_geom && (SELECT ST_Expand( ST_Extent(st_setsrid(st_makepoint(',lon,',', lat, '), 4326)), 0.01 ))
-      WHERE ', costname, ' > 0 OR ', rcostname, ' > 0
+      ', where_clause, ' AND (', costname, ' > 0 OR ', rcostname, ' > 0)
       ORDER BY the_geom <-> st_setsrid(st_makepoint(',lon,',',lat,'),4326)
       LIMIT 1 ') ;
     EXECUTE final_query INTO result ;
@@ -33,7 +33,8 @@ CREATE OR REPLACE FUNCTION $SCHEMA.nearest_edge(lon double precision,
 -- Conversion de coordinatesTable vers edgeIdTable
 CREATE OR REPLACE FUNCTION $SCHEMA.coordTableToEIDTable(coordinatesTable double precision[][],
                                                 costname text,         -- nom de la colonne du coût
-                                                rcostname text        -- nom de la colonne de coût inverse
+                                                rcostname text,        -- nom de la colonne de coût inverse
+                                                where_clause text
                                                 )
   RETURNS integer[] AS \$\$
   DECLARE
@@ -43,7 +44,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordTableToEIDTable(coordinatesTable double 
   BEGIN
     FOR i in 1 .. array_upper(coordinatesTable, 1)
     LOOP
-      edgeId := nearest_edge(coordinatesTable[i][1], coordinatesTable[i][2], costname, rcostname) ;
+      edgeId := $SCHEMA.nearest_edge(coordinatesTable[i][1], coordinatesTable[i][2], costname, rcostname, where_clause) ;
       result := array_append(result, edgeId) ;
     END LOOP;
     RETURN result;
@@ -54,7 +55,8 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordTableToEIDTable(coordinatesTable double 
 -- Conversion de coordinatesTable vers fractionTable
 CREATE OR REPLACE FUNCTION $SCHEMA.coordTableToFractionTable(coordinatesTable double precision[][],
                                                      costname text,         -- nom de la colonne du coût
-                                                     rcostname text        -- nom de la colonne de coût inverse
+                                                     rcostname text,        -- nom de la colonne de coût inverse
+                                                     where_clause text
                                                      )
   RETURNS float[] AS \$\$
   DECLARE
@@ -65,7 +67,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordTableToFractionTable(coordinatesTable do
     lon double precision;
     lat double precision;
   BEGIN
-    edgeIdTable := coordTableToEIDTable(coordinatesTable, costname, rcostname);
+    edgeIdTable := $SCHEMA.coordTableToEIDTable(coordinatesTable, costname, rcostname, where_clause);
     FOR i in 1 .. array_upper(edgeIdTable, 1)
     LOOP
       lon := coordinatesTable[i][1] ;
@@ -104,13 +106,13 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
   #variable_conflict use_column
   DECLARE
   graph_query text;
-  restrict_sql text;
   final_query text;
+  restrict_sql text;
   BEGIN
     -- création de la requete SQL
     -- -- requete pour avoir le graphe
     graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
-      rcostname,' AS reverse_cost FROM ways',
+      rcostname,' AS reverse_cost FROM $SCHEMA.ways AS ways',
       where_clause
     );
     restrict_sql := 'SELECT 2000::double precision as to_cost, id_to::integer as target_id, id_from::text as via_path FROM $SCHEMA.turn_restrictions';
@@ -139,8 +141,8 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                                 ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
                              END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges(\$1, coordTableToEIDTable(\$2,''',costname,''',''',rcostname,'''),
-                            coordTableToFractionTable(\$2,''',costname,''',''',rcostname,'''), true, true,
+                          FROM pgr_trspViaEdges(\$1, $SCHEMA.coordTableToEIDTable(\$2,\$niv2\$',costname,'\$niv2\$,\$niv2\$',rcostname,'\$niv2\$,\$niv2\$',where_clause,'\$niv2\$),
+                            $SCHEMA.coordTableToFractionTable(\$2,\$niv2\$',costname,'\$niv2\$,\$niv2\$',rcostname,'\$niv2\$,\$niv2\$',where_clause,'\$niv2\$), true, true,
                             \$3)
                           AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
@@ -157,7 +159,6 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
 -- Point d'entrée
 ----------------------------------------------------------------------------------------------------
 
--- TODO: enlever paramètre algo + renommer la fonction
 CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable double precision[][], -- table des points dans l'ordre de parcours
                                                         profile_name text,     -- nom du profil utilisé
                                                         costname text,         -- nom de la colonne du coût
@@ -182,6 +183,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable doub
     m double precision[][];
     attributes_query text;
     where_clause text;
+    eidtable integer[];
   BEGIN
     -- -- creation de la partie des attributs sur les chemins
     IF array_upper(waysAttributes, 1) > 1
@@ -202,14 +204,16 @@ CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable doub
       RAISE 'waysAttributes invalid';
     END IF;
 
-    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM $SCHEMA.ways WHERE id = ANY(''', coordTableToEIDTable( coordinatesTable, costname, rcostname ), '''::int[]))');
+    eidtable := $SCHEMA.coordTableToEIDTable( coordinatesTable, costname, rcostname, 'WHERE TRUE' );
+
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM $SCHEMA.ways WHERE id = ANY(\$niv3\$', eidtable, '\$niv3\$::int[]))');
     -- where_clause := '';
     IF constraints != ''
     THEN
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
     -- --
-    RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
+    RETURN QUERY SELECT * FROM $SCHEMA.coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
     -- --
   END ;
 \$\$ LANGUAGE 'plpgsql' ;

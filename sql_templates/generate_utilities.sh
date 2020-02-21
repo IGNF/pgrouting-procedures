@@ -11,7 +11,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.nearest_node(lon double precision, lat double
     result integer;
   BEGIN
     SELECT INTO result id::integer
-    FROM ways_vertices_pgr
+    FROM $SCHEMA.ways_vertices_pgr
     -- WHERE the_geom && (SELECT ST_Expand( ST_Extent(st_setsrid(st_makepoint(lon,lat),4326)),0.01))
     ORDER BY the_geom <-> st_setsrid(st_makepoint(lon, lat), 4326)
     LIMIT 1 ;

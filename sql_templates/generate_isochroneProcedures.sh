@@ -21,7 +21,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordToGeom(location double precision[]) RETU
 -- Converstion d'un point de coordonnées en un identifiant de vertex.
 CREATE OR REPLACE FUNCTION $SCHEMA.locationToVID(location double precision[]) RETURNS integer AS \$\$
   BEGIN
-    RETURN nearest_node(location[1], location[2]);
+    RETURN $SCHEMA.nearest_node(location[1], location[2]);
   END ;
 \$\$ LANGUAGE 'plpgsql' ;
 
@@ -50,7 +50,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, ', locationToVID(location), ', ', costValue, ') AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id');
+    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, ', $SCHEMA.locationToVID(location), ', ', costValue, ') AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id');
 
     -- Requête permettant de générer la géométrie finale à renvoyer.
     final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(pgr_pointsAsPolygon(\$1), 4326))');
@@ -85,13 +85,13 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
     ELSE
       buffer_value := 1;
     END IF;
-    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent( coordToGeom(\$niv3\$', location, '\$niv3\$)),', buffer_value ,'))');
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent( $SCHEMA.coordToGeom(\$niv3\$', location, '\$niv3\$)),', buffer_value ,'))');
     IF constraints != ''
     THEN
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
 
-    RETURN QUERY SELECT * FROM isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
+    RETURN QUERY SELECT * FROM $SCHEMA.isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
   END;
 \$\$ LANGUAGE 'plpgsql' ;
 EOF
