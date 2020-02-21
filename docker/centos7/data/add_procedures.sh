@@ -80,8 +80,8 @@ add_procedures() {
             eout int,
             the_geom geometry(Point,4326)
         );"
-    bash /usr/local/bin/generate_routeProcedures.sh $SCHEMA > /usr/local/bin/routeProcedures.sql
     bash /usr/local/bin/generate_utilities.sh $SCHEMA > /usr/local/bin/utilities.sql
+    bash /usr/local/bin/generate_routeProcedures.sh $SCHEMA > /usr/local/bin/routeProcedures.sql
     bash /usr/local/bin/generate_isochroneProcedures.sh $SCHEMA > /usr/local/bin/isochroneProcedures.sql
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/routeProcedures.sql
     $PSQL ${DB_NAME} -U $PG_USER -a -f /usr/local/bin/utilities.sql

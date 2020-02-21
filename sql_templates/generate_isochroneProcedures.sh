@@ -19,9 +19,12 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordToGeom(location double precision[]) RETU
 \$\$ LANGUAGE 'plpgsql' ;
 
 -- Converstion d'un point de coordonnées en un identifiant de vertex.
-CREATE OR REPLACE FUNCTION $SCHEMA.locationToVID(location double precision[]) RETURNS integer AS \$\$
+CREATE OR REPLACE FUNCTION $SCHEMA.locationToVID(location double precision[],
+                                        costname text,         -- nom de la colonne du coût
+                                        rcostname text,        -- nom de la colonne de coût inverse
+                                        where_clause text) RETURNS integer AS \$\$
   BEGIN
-    RETURN $SCHEMA.nearest_node(location[1], location[2]);
+    RETURN $SCHEMA.nearest_node(location[1], location[2], costname, rcostname, where_clause);
   END ;
 \$\$ LANGUAGE 'plpgsql' ;
 
@@ -50,7 +53,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, ', $SCHEMA.locationToVID(location), ', ', costValue, ') AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id');
+    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, ', $SCHEMA.locationToVID(location, costname, rcostname, where_clause), ', ', costValue, ') AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id');
 
     -- Requête permettant de générer la géométrie finale à renvoyer.
     final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(pgr_pointsAsPolygon(\$1), 4326))');
