@@ -109,10 +109,10 @@ CREATE OR REPLACE FUNCTION generateIsochrone(
   BEGIN
     -- Calcul de la valeur du 'buffer' (convertie en degrés)
     IF costColumn LIKE 'cost_m%' THEN
-      buffer_value := (costValue * 1.5) / 100000::float;
+      buffer_value := (costValue + 1000) / 100000::float;
     ELSIF costColumn LIKE 'cost_s%' THEN
       -- Buffer de temps * 130 km/h
-      buffer_value := costValue * (200 / 3.6) / 100000::float;
+      buffer_value := costValue * (150 / 3.6) / 100000::float;
     ELSE
       buffer_value := 1;
     END IF;
