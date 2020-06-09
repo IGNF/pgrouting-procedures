@@ -2,37 +2,13 @@
 #
 # postgresql-setup	Initialization and upgrade operations for PostgreSQL
 
-# PGVERSION is the full package version, e.g., 9.4.0
-# Note: the specfile inserts the correct value during package build
-PGVERSION=10.7
-# PGMAJORVERSION is major version, e.g., 9.4 (this should match PG_VERSION)
-PGMAJORVERSION=10
 # PGENGINE is the directory containing the postmaster executable
-# Note: the specfile inserts the correct value during package build
-PGENGINE=/usr/pgsql-$PGMAJORVERSION/bin
+PGENGINE=/usr/local/pgsql/bin/
 
-# The second parameter is the new database version, i.e. $PGMAJORVERSION in this case.
-# Use  "postgresql-$PGMAJORVERSION" service, if not specified.
-SERVICE_NAME="$2"
-if [ x"$SERVICE_NAME" = x ]
-then
-    SERVICE_NAME=postgresql-$PGMAJORVERSION
-fi
-
-# note that these options are useful at least for help2man processing
-case "$1" in
-    --version)
-	echo "postgresql-setup $PGVERSION"
-        exit 0
-        ;;
-esac
-
-# this parsing technique fails for PGDATA pathnames containing spaces,
-# but there's not much I can do about it given systemctl's output format...
-PGDATA=/var/lib/pgsql/$PGMAJORVERSION/data/
+PGDATA=/usr/local/pgsql/data/
 
 # Log file for initdb
-PGLOG=/var/lib/pgsql/$PGMAJORVERSION/initdb.log
+PGLOG=/usr/local/pgsql/initdb.log
 
 export PGDATA
 
@@ -43,7 +19,7 @@ script_result=0
 # code shared between initdb and upgrade actions
 perform_initdb(){
     if [ ! -e "$PGDATA" ]; then
-        mkdir "$PGDATA" || return 1
+        mkdir -p "$PGDATA" || return 1
         chown postgres:postgres "$PGDATA"
         chmod go-rwx "$PGDATA"
     fi

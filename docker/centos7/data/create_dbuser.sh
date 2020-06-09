@@ -1,18 +1,15 @@
 #!/bin/bash
 
-#Version
-PG_VERSION="10"
-
 #Settings
 DB_NAME=${DB_NAME:-}
 DB_USER=${DB_USER:-}
 DB_PASS=${DB_PASS:-}
 
 PG_PORT=5432
-PG_CONFDIR="/var/lib/pgsql/$PG_VERSION/data"
-PG_CTL="/usr/pgsql-$PG_VERSION/bin/pg_ctl"
+PG_CONFDIR="/usr/local/pgsql/data"
+PG_CTL="/usr/local/pgsql/bin/pg_ctl"
 PG_USER="postgres"
-PSQL="/bin/psql"
+PSQL="/usr/local/pgsql/bin/psql"
 
 create_dbuser() {
   ## Extract from https://github.com/CentOS/CentOS-Dockerfiles/blob/master/postgres/centos7/
@@ -22,7 +19,7 @@ create_dbuser() {
   if [ -n "${DB_USER}" ]; then
 
     # run postgresql server
-    cd /var/lib/pgsql && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
+    cd /usr/local/pgsql/ && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
     # generate password
     if [ -z "${DB_PASS}" ]; then
       echo "WARNING: "
@@ -46,7 +43,7 @@ create_dbuser() {
 
   if [ -n "${DB_NAME}" ]; then
     # run postgresql server
-    cd /var/lib/pgsql && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
+    cd /usr/local/pgsql/ && bash -c "$PG_CTL -D $PG_CONFDIR -o \"-c listen_addresses='*'\" -w start"
 
     # create database
     echo "Creating database \"${DB_NAME}\"..."
