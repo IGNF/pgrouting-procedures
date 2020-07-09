@@ -20,13 +20,14 @@ CREATE OR REPLACE FUNCTION nearest_edge(lon double precision,
   END ;
 $$ LANGUAGE 'plpgsql' ;
 
--- nettoie le graphe : donne un coût négatif aux arc isolés par rapport à la composante connexe principale
+-- nettoie le graphe : donne un coût négatif aux composantes connexes de 10 tronçons ou moins
 CREATE OR REPLACE FUNCTION clean_graph(
     profile_name text -- Nom du profil à nettoyer
   )
   RETURNS void AS $$
   DECLARE
-    isolated integer[];
+    isolated_components integer[];
+    isolated_nodes integer[];
     node_id integer;
     connected_component_query text;
     update_query text;
@@ -40,24 +41,26 @@ CREATE OR REPLACE FUNCTION clean_graph(
       from ways'
     );
 
-    isolated := ARRAY(
-      WITH biggest_component AS
+    isolated_components := ARRAY(
+      SELECT DISTINCT component
+      FROM
         (
-          SELECT component AS name, count(*) AS nb
+          SELECT component, count(*) AS nb
           FROM
             pgr_connectedComponents(connected_component_query)
           GROUP BY component
-          ORDER BY nb DESC
-          LIMIT 1
-        )
+        ) AS components
+      WHERE nb <= 10
+    );
+
+    isolated_nodes := ARRAY(
       SELECT node
       FROM
         pgr_connectedComponents(
           connected_component_query
-        ),
-        biggest_component
+        )
       WHERE
-      component != biggest_component.name
+      component = ANY(isolated_components)
     );
 
   update_query := concat('UPDATE ways
@@ -65,7 +68,7 @@ CREATE OR REPLACE FUNCTION clean_graph(
       cost_m_', profile_name,' = -1,
       reverse_cost_s_', profile_name,' = -1,
       reverse_cost_m_', profile_name,' = -1
-    WHERE ways.target = ANY(''', isolated, ''') OR ways.source = ANY(''', isolated, ''');'
+    WHERE ways.target = ANY(''', isolated_nodes, ''') OR ways.source = ANY(''', isolated_nodes, ''');'
   );
   EXECUTE update_query;
   END;
