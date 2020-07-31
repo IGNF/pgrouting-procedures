@@ -67,7 +67,9 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                                       costname text,         -- nom de la colonne du coût
                                       rcostname text,        -- nom de la colonne de coût inverse
                                       waysAttributesQuery text,  -- liste des attributs de route à récupérer sous forme de requête
-                                      where_clause text      -- clause WHERE pour la sélection d'une partie du graphe pour le routing
+                                      where_clause text,      -- clause WHERE pour la sélection d'une partie du graphe pour le routing
+                                      real_cost_name text,   -- "vrai" nom du coût dans le cas de contraintes préférentielles
+                                      real_rcost_name text    -- "vrai" nom du coût inverse dans le cas de contraintes préférentielles
                                     )
   RETURNS TABLE (
     seq int,                    -- index absolu de l'étape (commence à 1)
@@ -86,7 +88,19 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
   graph_query text;
   final_query text;
   restrict_sql text;
+  true_cost_name text;
+  true_rcost_name text;
   BEGIN
+    true_cost_name := costname;
+    true_rcost_name := rcostname;
+    IF real_cost_name != ''
+    THEN
+      true_cost_name := real_cost_name;
+    END IF;
+    IF real_rcost_name != ''
+    THEN
+      true_rcost_name := real_rcost_name;
+    END IF;
     -- création de la requete SQL
     -- -- requete pour avoir le graphe
     graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
@@ -106,17 +120,18 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                               THEN ST_AsGeoJSON(ways.the_geom,6)
                               ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,',
+                            -- division nécessaire pour les tronçons non complets : cost/ways.costname est la proportion du tronçon empruntée
                             'CASE
-                              WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_m_', profile_name,'*cost/ways.',costname,
+                              WHEN $SCHEMA.ways.', true_cost_name, ' > 0 THEN',
+                            '   $SCHEMA.ways.cost_m_', profile_name,'*cost/$SCHEMA.ways.',true_cost_name,
                             ' ELSE
-                                ways.reverse_cost_m_', profile_name,'*cost/ways.',rcostname,'
+                                $SCHEMA.ways.reverse_cost_m_', profile_name,'*cost/$SCHEMA.ways.',true_rcost_name,'
                             END as distance,',
                             'CASE
-                              WHEN ways.', costname, ' > 0 THEN',
-                            '   ways.cost_s_', profile_name,'*cost/ways.',costname,
+                              WHEN $SCHEMA.ways.', true_cost_name, ' > 0 THEN',
+                            '   $SCHEMA.ways.cost_s_', profile_name,'*cost/$SCHEMA.ways.',true_cost_name,
                             ' ELSE
-                                ways.reverse_cost_s_', profile_name,'*cost/ways.',rcostname,'
+                                $SCHEMA.ways.reverse_cost_s_', profile_name,'*cost/$SCHEMA.ways.',true_rcost_name,'
                              END as duration,',
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges(\$1, $SCHEMA.coordTableToEIDTable(\$2,\$niv2\$',costname,'\$niv2\$,\$niv2\$',rcostname,'\$niv2\$,\$niv2\$',where_clause,'\$niv2\$),
@@ -162,6 +177,11 @@ CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable doub
     attributes_query text;
     where_clause text;
     eidtable integer[];
+    costname_array text[];
+    rcostname_array text[];
+    real_cost_name text;
+    real_rcost_name text;
+    else_position integer;
   BEGIN
     -- -- creation de la partie des attributs sur les chemins
     IF array_upper(waysAttributes, 1) > 1
@@ -190,8 +210,37 @@ CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable doub
     THEN
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
+
+    real_cost_name := '';
+    real_rcost_name := '';
+    SELECT string_to_array(costname, ' ') INTO costname_array;
+    SELECT string_to_array(rcostname, ' ') INTO rcostname_array;
+    else_position := 0;
+    -- si contraintes préférentielles : récupération du 'vrai' nom du coût
+    IF array_upper(costname_array, 1) > 1
+    THEN
+      FOR i in 1 .. array_upper(costname_array, 1)
+      LOOP
+        IF costname_array[i] = 'ELSE'
+        THEN
+          else_position := i;
+        END IF;
+      END LOOP;
+      real_cost_name := costname_array[else_position + 1];
+    END IF;
+    IF array_upper(rcostname_array, 1) > 1
+    THEN
+      FOR i in 1 .. array_upper(rcostname_array, 1)
+      LOOP
+        IF rcostname_array[i] = 'ELSE'
+        THEN
+          else_position := i;
+        END IF;
+      END LOOP;
+      real_rcost_name := rcostname_array[else_position + 1];
+    END IF;
     -- --
-    RETURN QUERY SELECT * FROM $SCHEMA.coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query, where_clause) ;
+    RETURN QUERY SELECT * FROM $SCHEMA.coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query,where_clause,real_cost_name,real_rcost_name) ;
     -- --
   END ;
 \$\$ LANGUAGE 'plpgsql' ;
