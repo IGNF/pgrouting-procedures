@@ -12,7 +12,7 @@ RUN yum -y update
 RUN yum -y install yum-utils centos-release-scl epel-release
 RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
 RUN yum -y install devtoolset-8
-RUN rpm -Uvh https://yum.postgresql.org/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-redhat-repo-42.0-9.noarch.rpm
 RUN yum -y install git cmake3 zlib-devel postgresql10-10.7 postgresql10-server-10.7 postgresql10-libs-10.7 postgresql10-contrib-10.7 postgresql10-devel-10.7
 
 WORKDIR /home/docker/

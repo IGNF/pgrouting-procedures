@@ -16,6 +16,7 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
   location double precision [],  -- Point de départ/arrivée du calcul.
   costValue double precision,    -- Valeur du coût.
   direction text,                -- Sens du parcours.
+  projection int,                -- Projection souhaitée.
   costName text,                 -- Nom de la colonne du coût.
   rcostName text,                -- Nom de la colonne du coût inverse.
   where_clause text              -- Clause WHERE (pour ne sélectionner qu'une portion du graphe).
@@ -82,9 +83,9 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance($niv2$', graph_query, '$niv2$, -1, ', costValue, ', true) AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id');
+    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(pgr_pointsAsPolygon($1), 4326))');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(pgr_pointsAsPolygon(\$1), 4326), ', projection, '))');
 
     RETURN QUERY EXECUTE final_query
     USING isochrone_query;
@@ -96,9 +97,10 @@ CREATE OR REPLACE FUNCTION generateIsochrone(
     location double precision [],   -- Point de départ/arrivée du calcul.
     costValue double precision,     -- Valeur du coût.
     direction text,                 -- Sens du parcours.
+    projection int,                 -- Projection souhaitée.
     costColumn text,                -- Nom de la colonne du coût.
-    rcostColumn text,                -- Nom de la colonne du coût inverse.
-    constraints text                -- Nom de la colonne du coût inverse.
+    rcostColumn text,               -- Nom de la colonne du coût inverse.
+    constraints text                -- Contraintes d'inclusion/exclusion.
   )
   RETURNS TABLE (
     geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
@@ -124,6 +126,6 @@ CREATE OR REPLACE FUNCTION generateIsochrone(
     THEN
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
-    RETURN QUERY SELECT * FROM isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
+    RETURN QUERY SELECT * FROM isochroneGenerator(location, costValue, direction, projection, costColumn, rcostColumn, where_clause);
   END;
 $$ LANGUAGE 'plpgsql' ;
