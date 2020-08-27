@@ -35,6 +35,11 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
     -- Point temporaire
     nedge_id := nearest_edge(location[1], location[2], costname, rcostname, where_clause);
 
+    -- Si ce point nedge_id n'exite pas, on s'arrete et on renvoit un tableau vide 
+    IF nedge_id IS NULL THEN 
+      RETURN;
+    END IF;
+
     temp_fraction := ST_LineLocatePoint(
       (SELECT the_geom FROM ways
         WHERE id = nedge_id
@@ -42,6 +47,10 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
       st_setsrid(st_makepoint(location[1], location[2]),4326)
     );
 
+    -- Si ce point temp_fraction n'exite pas, on s'arrete et on renvoit un tableau vide 
+    IF temp_fraction IS NULL THEN 
+      RETURN;
+    END IF;
 
     CREATE TEMP TABLE temp_point ON COMMIT DROP AS
       SELECT
