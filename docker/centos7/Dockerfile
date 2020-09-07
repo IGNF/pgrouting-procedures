@@ -14,16 +14,16 @@ RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
 RUN yum -y install devtoolset-8
 # https://yum.postgresql.org/repopackages.php
 RUN rpm -Uvh https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-RUN yum -y install git cmake3 zlib-devel wget 
+RUN yum -y install git cmake3 zlib-devel wget
 
 # Installation de PostgreSQL
 # Anciens paquets yum installés: postgresql10-10.7 postgresql10-server-10.7 postgresql10-libs-10.7 postgresql10-contrib-10.7 postgresql10-devel-10.7
 WORKDIR /home/docker/postgresql
-RUN yum install -y readline-devel 
+RUN yum install -y readline-devel
 RUN wget -O postgresql-10.13.tar.gz https://ftp.postgresql.org/pub/source/v10.13/postgresql-10.13.tar.gz
 RUN tar -xvzf postgresql-10.13.tar.gz && cd postgresql-10.13 && ./configure && make && make install
 RUN cd postgresql-10.13/contrib/postgres_fdw/ && make && make install
-RUN adduser postgres 
+RUN adduser postgres
 # Run initdb
 COPY docker/centos7/data/postgresql-setup /home/docker/postgresql/postgresql-setup
 RUN /home/docker/postgresql/postgresql-setup initdb -d
@@ -47,10 +47,10 @@ RUN wget -O postgis-2.5.4.tar.gz https://download.osgeo.org/postgis/source/postg
 RUN cd postgis-2.5.4 && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
     --with-geosconfig=/usr/local/bin/geos-config --with-gdalconfig=/usr/local/bin/gdal-config \
     --with-sfcgal=/usr/bin/sfcgal-config && \
-    make && make install 
+    make && make install
 RUN cd postgis-2.5.4/extensions/postgis && make clean && make && make install && \
-    cd ../postgis_topology/ && make clean && make && make install && \ 
-    cd ../postgis_sfcgal/ && make clean && make && make install 
+    cd ../postgis_topology/ && make clean && make && make install && \
+    cd ../postgis_sfcgal/ && make clean && make && make install
 # Installation de pgrouting
 # ancien paquets installés: postgis25_10-client-2.5.1 pgrouting_10-2.6.1
 WORKDIR /home/docker/pgrouting/
