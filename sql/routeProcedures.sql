@@ -81,20 +81,7 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
   graph_query text;
   final_query text;
   restrict_sql text;
-  true_cost_name text;
-  true_rcost_name text;
   BEGIN
-    true_cost_name := costname;
-    true_rcost_name := rcostname;
-    IF real_cost_name != ''
-    THEN
-      true_cost_name := real_cost_name;
-    END IF;
-    IF real_rcost_name != ''
-    THEN
-      true_rcost_name := real_rcost_name;
-    END IF;
-
     -- création de la requete SQL
     -- -- requete pour avoir le graphe
     graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
@@ -117,20 +104,20 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                             END,',
                             -- division nécessaire pour les tronçons non complets : cost/ways.costname est la proportion du tronçon empruntée
                             'CASE
-                              WHEN ways.', true_cost_name, ' > 0 THEN',
-                            '   ways.cost_m_', profile_name,'*cost/ways.',true_cost_name,
+                              WHEN ways.', real_cost_name, ' > 0 THEN',
+                            '   ways.cost_m_', profile_name,'*cost/ways.',real_cost_name,
                             ' ELSE
-                                ways.reverse_cost_m_', profile_name,'*cost/ways.',true_rcost_name,'
+                                ways.reverse_cost_m_', profile_name,'*cost/ways.',real_rcost_name,'
                             END as distance,',
                             'CASE
-                              WHEN ways.', true_cost_name, ' > 0 THEN',
-                            '   ways.cost_s_', profile_name,'*cost/ways.',true_cost_name,
+                              WHEN ways.', real_cost_name, ' > 0 THEN',
+                            '   ways.cost_s_', profile_name,'*cost/ways.',real_cost_name,
                             ' ELSE
-                                ways.reverse_cost_s_', profile_name,'*cost/ways.',true_rcost_name,'
+                                ways.reverse_cost_s_', profile_name,'*cost/ways.',real_rcost_name,'
                              END as duration,',
                             waysAttributesQuery,'
-                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,$niv2$',costname,'$niv2$,$niv2$',rcostname,'$niv2$,$niv2$',where_clause,'$niv2$),
-                            coordTableToFractionTable($2,$niv2$',costname,'$niv2$,$niv2$',rcostname,'$niv2$,$niv2$',where_clause,'$niv2$), true, true,
+                          FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,$niv2$',real_cost_name,'$niv2$,$niv2$',real_rcost_name,'$niv2$,$niv2$',where_clause,'$niv2$),
+                            coordTableToFractionTable($2,$niv2$',real_cost_name,'$niv2$,$niv2$',real_rcost_name,'$niv2$,$niv2$',where_clause,'$niv2$), true, true,
                             $3)
                           AS path
                           LEFT JOIN ways ON (path.id3 = ways.id)
@@ -197,17 +184,8 @@ CREATE OR REPLACE FUNCTION shortest_path_pgrouting(coordinatesTable double preci
       RAISE 'waysAttributes invalid';
     END IF;
 
-    eidtable := coordTableToEIDTable( coordinatesTable, costname, rcostname, 'WHERE TRUE' );
-
-    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM ways WHERE id = ANY($niv3$', eidtable, '$niv3$::int[]))');
-    -- where_clause := '';
-    IF constraints != ''
-    THEN
-      where_clause := concat(where_clause, ' AND ', constraints);
-    END IF;
-
-    real_cost_name := '';
-    real_rcost_name := '';
+    real_cost_name := costname;
+    real_rcost_name := rcostname;
     SELECT string_to_array(costname, ' ') INTO costname_array;
     SELECT string_to_array(rcostname, ' ') INTO rcostname_array;
     else_position := 0;
@@ -219,6 +197,7 @@ CREATE OR REPLACE FUNCTION shortest_path_pgrouting(coordinatesTable double preci
         IF costname_array[i] = 'ELSE'
         THEN
           else_position := i;
+          EXIT;
         END IF;
       END LOOP;
       real_cost_name := costname_array[else_position + 1];
@@ -230,10 +209,22 @@ CREATE OR REPLACE FUNCTION shortest_path_pgrouting(coordinatesTable double preci
         IF rcostname_array[i] = 'ELSE'
         THEN
           else_position := i;
+          EXIT;
         END IF;
       END LOOP;
       real_rcost_name := rcostname_array[else_position + 1];
     END IF;
+    -- --
+
+    eidtable := coordTableToEIDTable( coordinatesTable, real_cost_name, real_rcost_name, 'WHERE TRUE' );
+
+    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM ways WHERE id = ANY($niv3$', eidtable, '$niv3$::int[]))');
+    -- where_clause := '';
+    IF constraints != ''
+    THEN
+      where_clause := concat(where_clause, ' AND ', constraints);
+    END IF;
+
     -- --
     RETURN QUERY SELECT * FROM coord_trspEdges(coordinatesTable,profile_name,costname,rcostname,attributes_query,where_clause,real_cost_name,real_rcost_name) ;
     -- --
