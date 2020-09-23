@@ -8,3 +8,6 @@ Pour installer les fontions sql d'un fichier (e.g. routeProcedures.sql) sur une 
 ```sh
 psql -U user -h host -d db_name -f sql/routeProcedures.sql
 ```
+## Version 
+
+Version des procèdures: 1.0.01
