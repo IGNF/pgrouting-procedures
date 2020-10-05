@@ -102,18 +102,17 @@ CREATE OR REPLACE FUNCTION coord_trspEdges(coordinatesTable double precision[][]
                               THEN ST_AsGeoJSON(ways.the_geom,6)
                               ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
                             END,',
-                            -- division nécessaire pour les tronçons non complets : cost/ways.costname est la proportion du tronçon empruntée
                             'CASE
                               WHEN ways.', real_cost_name, ' > 0 THEN',
-                            '   ways.cost_m_', profile_name,'*cost/ways.',real_cost_name,
+                            '   ways.cost_m_', profile_name,
                             ' ELSE
-                                ways.reverse_cost_m_', profile_name,'*cost/ways.',real_rcost_name,'
+                                ways.reverse_cost_m_', profile_name,'
                             END as distance,',
                             'CASE
                               WHEN ways.', real_cost_name, ' > 0 THEN',
-                            '   ways.cost_s_', profile_name,'*cost/ways.',real_cost_name,
+                            '   ways.cost_s_', profile_name,
                             ' ELSE
-                                ways.reverse_cost_s_', profile_name,'*cost/ways.',real_rcost_name,'
+                                ways.reverse_cost_s_', profile_name,'
                              END as duration,',
                             waysAttributesQuery,'
                           FROM pgr_trspViaEdges($1, coordTableToEIDTable($2,$niv2$',real_cost_name,'$niv2$,$niv2$',real_rcost_name,'$niv2$,$niv2$',where_clause,'$niv2$),
