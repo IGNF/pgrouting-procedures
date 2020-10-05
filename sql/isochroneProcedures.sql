@@ -35,8 +35,8 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
     -- Point temporaire
     nedge_id := nearest_edge(location[1], location[2], costname, rcostname, where_clause);
 
-    -- Si ce point nedge_id n'exite pas, on s'arrete et on renvoit un tableau vide 
-    IF nedge_id IS NULL THEN 
+    -- Si ce point nedge_id n'exite pas, on s'arrete et on renvoit un tableau vide
+    IF nedge_id IS NULL THEN
       RETURN;
     END IF;
 
@@ -47,8 +47,8 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
       st_setsrid(st_makepoint(location[1], location[2]),4326)
     );
 
-    -- Si ce point temp_fraction n'exite pas, on s'arrete et on renvoit un tableau vide 
-    IF temp_fraction IS NULL THEN 
+    -- Si ce point temp_fraction n'exite pas, on s'arrete et on renvoit un tableau vide
+    IF temp_fraction IS NULL THEN
       RETURN;
     END IF;
 
@@ -92,9 +92,9 @@ CREATE OR REPLACE FUNCTION isochroneGenerator(
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id');
+    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance($niv2$', graph_query, '$niv2$, -1, ', costValue, ', true) AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(pgr_pointsAsPolygon(\$1), 4326), ', projection, '))');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(pgr_pointsAsPolygon($1), 4326), ', projection, '))');
 
     RETURN QUERY EXECUTE final_query
     USING isochrone_query;
