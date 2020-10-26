@@ -222,7 +222,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.shortest_path_pgrouting(coordinatesTable doub
     -- --
     eidtable := $SCHEMA.coordTableToEIDTable( coordinatesTable, real_cost_name, real_rcost_name, 'WHERE TRUE' );
 
-    where_clause := concat(' WHERE WHERE importance=''1'' OR (the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM $SCHEMA.ways WHERE id = ANY(\$niv3\$', eidtable, '\$niv3\$::int[])))');
+    where_clause := concat(' WHERE importance=''1'' OR (the_geom && (SELECT ST_Expand( ST_Extent(the_geom), 0.1 ) FROM $SCHEMA.ways WHERE id = ANY(\$niv3\$', eidtable, '\$niv3\$::int[])))');
     -- where_clause := '';
     IF constraints != ''
     THEN
