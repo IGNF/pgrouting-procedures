@@ -1,9 +1,6 @@
 FROM centos:7.5.1804
 
-ARG proxy=""
 ARG ipRange=""
-
-ENV http_proxy=$proxy https_proxy=$proxy HTTP_PROXY=$proxy HTTPS_PROXY=$proxy
 
 ENV HOME=/usr/local/pgsql PGDATA=/usr/local/pgsql/data LD_LIBRARY_PATH=/usr/local/pgsql/lib/:/usr/local/lib/
 
