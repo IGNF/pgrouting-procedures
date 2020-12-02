@@ -13,11 +13,10 @@ docker build -t centos-pgrouting -f docker/centos/Dockerfile .
 ```
 
 Les éléments suivants peuvent être spécifiés:
-- Proxy (ex. "http://proxy:3128")
 - ipRange (ex. "10.10.0.0/24")
 
 ```
-docker build -t centos-pgrouting --build-arg proxy=$proxy --build-arg ipRange=$iprange -f docker/centos/Dockerfile .
+docker build -t centos-pgrouting --build-arg ipRange=$iprange -f docker/centos/Dockerfile .
 ```
 
 # Lancer le serveur de base de données :
