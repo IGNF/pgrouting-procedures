@@ -100,12 +100,11 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT dd.seq AS id, ST_X(v.the_geom) AS x, ST_Y(v.the_geom) AS y FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id');
+    isochrone_query := concat('SELECT ST_Union(geoms.the_geom) AS union FROM (SELECT v.the_geom AS the_geom FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id) AS geoms');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(pgr_pointsAsPolygon(\$1), 4326), ', projection, '))');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(ST_ConcaveHull(u.union, 0.7), 4326), ', projection, ')) FROM (', isochrone_query, ') AS u');
 
-    RETURN QUERY EXECUTE final_query
-    USING isochrone_query;
+    RETURN QUERY EXECUTE final_query;
   END;
 \$\$ LANGUAGE 'plpgsql' ;
 

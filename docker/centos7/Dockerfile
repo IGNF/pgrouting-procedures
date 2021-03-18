@@ -6,8 +6,8 @@ ENV HOME=/usr/local/pgsql PGDATA=/usr/local/pgsql/data LD_LIBRARY_PATH=/usr/loca
 
 # Update et dépendances
 RUN yum -y update
-RUN yum -y install yum-utils centos-release-scl epel-release
-RUN yum-config-manager --enable rhel-server-rhscl-7-rpms
+RUN yum -y install yum-utils rhel-server-rhscl-7-rpms epel-release
+RUN yum-config-manager --enable centos-sclo-rh
 RUN yum -y install devtoolset-8
 # https://yum.postgresql.org/repopackages.php
 RUN rpm -Uvh https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
@@ -52,10 +52,10 @@ RUN cd postgis-2.5.4/extensions/postgis && make clean && make && make install &&
 # ancien paquets installés: postgis25_10-client-2.5.1 pgrouting_10-2.6.1
 WORKDIR /home/docker/pgrouting/
 RUN yum install -y boost-devel CGAL-devel perl-Data-Dumper
-RUN wget -O pgrouting-2.6.3.tar.gz https://github.com/pgRouting/pgrouting/archive/v2.6.3.tar.gz && tar -xvzf pgrouting-2.6.3.tar.gz
+RUN wget -O pgrouting-3.1.3.tar.gz https://github.com/pgRouting/pgrouting/archive/v3.1.3.tar.gz && tar -xvzf pgrouting-3.1.3.tar.gz
 RUN scl enable devtoolset-8 bash && \
     export CC=/opt/rh/devtoolset-8/root/usr/bin/gcc CXX=/opt/rh/devtoolset-8/root/usr/bin/g++ && \
-    cd pgrouting-2.6.3 && mkdir build && cd build && \
+    cd pgrouting-3.1.3 && mkdir build && cd build && \
     cmake3 -DPOSTGRESQL_PG_CONFIG=/usr/local/pgsql/bin/pg_config .. && make && make install
 
 # Copy config file
