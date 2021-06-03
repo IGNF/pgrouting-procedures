@@ -126,14 +126,14 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
     buffer_value double precision;
   BEGIN
     -- Calcul de la valeur du 'buffer' (convertie en degrés)
-    IF costColumn LIKE 'cost_m%' THEN
-      buffer_value := (costValue + 1000) / 100000;
+    IF costColumn LIKE '%cost_m%' THEN
+      buffer_value := (costValue + 50) / 100000::float;
     ELSIF costColumn LIKE '%cost_s_car%' THEN
-      -- Buffer de temps * 150 km/h
-      buffer_value := costValue * (150 / 3.6) / 100000::float;
+      -- Buffer de temps * 130 km/h
+      buffer_value := costValue * (130 / 3.6) / 100000::float;
     ELSIF costColumn LIKE '%cost_s_pedestrian%' THEN
-      -- Buffer de temps * 5 km/h
-      buffer_value := costValue * (5 / 3.6) / 100000::float;
+      -- Buffer de temps * 4.2 km/h
+      buffer_value := costValue * (4.2 / 3.6) / 100000::float;
     ELSE
       buffer_value := 1;
     END IF;
