@@ -92,7 +92,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
     -- création de la requete SQL
     -- -- requete pour avoir le graphe
     graph_query := concat('SELECT id::integer,source::integer,target::integer, ', costname,' AS cost, ',
-      rcostname,' AS reverse_cost FROM $SCHEMA.ways AS ways',
+      rcostname,' AS reverse_cost FROM $SCHEMA.ways AS tempways',
       where_clause
     );
     restrict_sql := 'SELECT 2000::double precision as to_cost, id_to::integer as target_id, id_from::text as via_path FROM $SCHEMA.turn_restrictions';
