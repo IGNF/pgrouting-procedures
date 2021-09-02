@@ -11,3 +11,7 @@ psql -U user -h host -d db_name -f sql/routeProcedures.sql
 ## Version
 
 Version des procèdures: 1.0.4-DEVELOP
+
+## Licence 
+
+PgRouting est diffusé sous la licence GPL v3. 
