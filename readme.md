@@ -10,7 +10,7 @@ psql -U user -h host -d db_name -f sql/routeProcedures.sql
 ```
 ## Version
 
-Version des procèdures: 1.0.4-DEVELOP
+Version des procèdures: 1.0.5-DEVELOP
 
 ## Licence 
 
