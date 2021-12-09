@@ -104,9 +104,9 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                             path.id3 as edge, path.cost as cost,
                             SUM(cost) OVER (ORDER BY seq ASC rows between unbounded preceding and current row) as agg_cost,
                             CASE
-                              WHEN path.id2 = ways.source OR (LEAD(path.id2) OVER (ORDER BY seq ASC)) = ways.target
-                              THEN ST_AsGeoJSON(ways.the_geom,6)
-                              ELSE ST_AsGeoJSON(ST_Reverse(ways.the_geom),6)
+                              WHEN path.id2 = $SCHEMA.ways.source OR (LEAD(path.id2) OVER (ORDER BY seq ASC)) = $SCHEMA.ways.target
+                              THEN ST_AsGeoJSON($SCHEMA.ways.the_geom,6)
+                              ELSE ST_AsGeoJSON(ST_Reverse($SCHEMA.ways.the_geom),6)
                             END,',
                             'CASE
                               WHEN $SCHEMA.ways.', real_cost_name, ' > 0 THEN',
@@ -125,7 +125,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coord_trspEdges(coordinatesTable double preci
                             $SCHEMA.coordTableToFractionTable(\$2,\$niv2\$',real_cost_name,'\$niv2\$,\$niv2\$',real_rcost_name,'\$niv2\$,\$niv2\$',where_clause,'\$niv2\$), true, true,
                             \$3)
                           AS path
-                          LEFT JOIN ways ON (path.id3 = ways.id)
+                          LEFT JOIN $SCHEMA.ways ON (path.id3 = $SCHEMA.ways.id)
                           ORDER BY seq'
                   );
     -- --
