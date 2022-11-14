@@ -1,11 +1,11 @@
 Pour utiliser les templates :
 ```
-bash generate_utilities.sh <nom_du_schema>
+bash generate_all_procedures.sh <nom_du_schema>
 ```
 
 Pour sauvegarder l'output dans un fichier sql :
 ```
-bash generate_utilities.sh <nom_du_schema> > nom_du_fichier.sql
+bash generate_all_procedures.sh <nom_du_schema> > nom_du_fichier.sql
 ```
 
 
