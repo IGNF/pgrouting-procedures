@@ -23,7 +23,6 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
   location double precision [],  -- Point de départ/arrivée du calcul.
   costValue double precision,    -- Valeur du coût.
   direction text,                -- Sens du parcours.
-  projection int,                -- Projection souhaitée.
   costName text,                 -- Nom de la colonne du coût.
   rcostName text,                -- Nom de la colonne du coût inverse.
   where_clause text              -- Clause WHERE (pour ne sélectionner qu'une portion du graphe).
@@ -102,7 +101,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
     isochrone_query := concat('SELECT ST_Union(geoms.the_geom) AS union FROM (SELECT v.the_geom AS the_geom FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id) AS geoms');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_Transform(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326), ', projection, ')) FROM (', isochrone_query, ') AS u');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326))) FROM (', isochrone_query, ') AS u');
 
     RETURN QUERY EXECUTE final_query;
   END;
@@ -113,7 +112,6 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
     location double precision [],   -- Point de départ/arrivée du calcul.
     costValue double precision,     -- Valeur du coût.
     direction text,                 -- Sens du parcours.
-    projection int,                 -- Projection souhaitée.
     costColumn text,                -- Nom de la colonne du coût.
     rcostColumn text,               -- Nom de la colonne du coût inverse.
     constraints text                -- Contraintes d'inclusion/exclusion.
@@ -143,7 +141,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
 
-    RETURN QUERY SELECT * FROM $SCHEMA.isochroneGenerator(location, costValue, direction, projection, costColumn, rcostColumn, where_clause);
+    RETURN QUERY SELECT * FROM $SCHEMA.isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
   END;
 \$\$ LANGUAGE 'plpgsql' ;
 EOF
