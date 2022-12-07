@@ -1,4 +1,4 @@
-# 1.1.0
+# 2.0.0
 
 BREAKING CHANGE:
 - Les procèdures d'isochrones ne prennent plus en compte le paramètre projection (il ne fonctionnait pas en l'état)
