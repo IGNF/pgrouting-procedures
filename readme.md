@@ -29,7 +29,7 @@ Une image docker est disponible dans le dossier [docker](./docker). Cette image 
 
 ## Version
 
-Version des procèdures: 2.0.1-DEVELOP
+Version des procèdures: 2.0.0
 
 ## Licence
 
