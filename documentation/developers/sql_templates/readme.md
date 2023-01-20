@@ -1,3 +1,5 @@
+# Utiliser les templates SQL
+
 Pour utiliser les templates :
 ```
 bash generate_all_procedures.sh <nom_du_schema>
