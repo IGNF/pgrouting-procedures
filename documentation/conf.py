@@ -84,7 +84,7 @@ myst_substitutions = {
     "author": "IGNF",
     "date_update": datetime.now().strftime("%d %B %Y"),
     "description": "SQL procedures usable with PgRouting to calculate routes and isochrones easily.",
-    "repo_url": "https://github.com/IGNF/pgrouting-procedures",
+    "repo_url": "https://github.com/IGNF/pgrouting-procedures/",
     "repo_branch": "develop",
     "title": html_title,
     "version": "2.0.0",
