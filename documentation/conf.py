@@ -81,13 +81,14 @@ myst_enable_extensions = [
 ]
 
 myst_substitutions = {
-    #"author": author,
+    "author": "IGNF",
     "date_update": datetime.now().strftime("%d %B %Y"),
-    #"description": description,
-    #"repo_url": __about__.__uri__,
-    #"title": project,
-    #"version": version,
-    #"license": license,
+    "description": "SQL procedures usable with PgRouting to calculate routes and isochrones easily.",
+    "repo_url": "https://github.com/IGNF/pgrouting-procedures",
+    "repo_branch": "develop",
+    "title": html_title,
+    "version": "2.0.0",
+    "license": "GNU General Public License v3.0",
 }
 
 myst_url_schemes = ["http", "https", "mailto"]
