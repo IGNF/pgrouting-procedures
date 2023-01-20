@@ -1,6 +1,6 @@
 # Utiliser les templates SQL
 
-Pour utiliser les templates :
+Pour utiliser les templates du dossier `sql_templates` :
 ```
 bash generate_all_procedures.sh <nom_du_schema>
 ```
@@ -11,7 +11,6 @@ bash generate_all_procedures.sh <nom_du_schema> > nom_du_fichier.sql
 ```
 
 
-Le script add_procedures du dossier docker/centos7/data peut prendre en paramètre un nom de schema.
-Il va alors ajouter les procédures au schéma spécifé. (sans schéma scpécifié, elles seront ajoutées à public)
+Le script add_procedures du dossier `scripts` va ajouter les procédures au schéma public.
 
-!!! Toujours ajouter les utilities en premier
+**Toujours ajouter les utilities en premier!**

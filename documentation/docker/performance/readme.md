@@ -22,7 +22,7 @@ Les paramètres du type `${var}` sont initialisés dans le fichier `.env` qui se
 
 ### Les secrets
 
-Les secrets permettent de transférer des données sensibles. Dans notre cas, ils sont utile pour se connecter à la base de données qui est testée.
+Les secrets permettent de transférer des données sensibles. Dans notre cas, ils sont utiles pour se connecter à la base de données qui est testée.
 
 ### Build
 
