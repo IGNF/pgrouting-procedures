@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #suppose l'existence du contenu de ../sql_templates dans /usr/local/bin/
-SCHEMA='public'
+SCHEMA=${1-public}
 
-PG_PORT=5432
-PG_USER="postgres"
-DB_NAME="pgrouting"
+PG_PORT=${2-5432}
+PG_USER=${3-postgres}
+DB_NAME=${4-pgroutingsss}
 
 psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" <<-EOSQL
     CREATE DATABASE $DB_NAME WITH ENCODING 'UTF8' TEMPLATE template0;
