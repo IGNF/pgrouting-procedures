@@ -47,24 +47,24 @@ done
 
 if [ $CREATE_DBS ]; then
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres"  <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
     CREATE DATABASE $DB_NAME WITH ENCODING 'UTF8' TEMPLATE template0;
     GRANT ALL PRIVILEGES ON DATABASE $DB_NAME to $PG_USER;
 EOSQL
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres"  <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
     CREATE DATABASE pivot WITH ENCODING 'UTF8' TEMPLATE template0;
     GRANT ALL PRIVILEGES ON DATABASE $DB_NAME to $PG_USER;
 EOSQL
 
 psql $DB_NAME -U $PG_USER - -c "CREATE SCHEMA IF NOT EXISTS $SCHEMA;"
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "$DB_NAME"  <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "$DB_NAME" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
     CREATE EXTENSION postgis;
     CREATE EXTENSION pgrouting;
 EOSQL
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "pivot"  <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "pivot" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
     CREATE EXTENSION postgis;
     CREATE EXTENSION postgres_fdw;
 EOSQL
@@ -73,7 +73,7 @@ fi
 
 
 echo "Installing procedures on \"$DB_NAME\" schema $SCHEMA..."
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -c "CREATE TABLE $SCHEMA.ways(
+psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SCHEMA.ways(
         id bigserial unique,
         tag_id integer,
         length double precision,
@@ -117,7 +117,7 @@ psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -c "CREATE TABLE $
         cpx_numero_route_europeenne text,
         cpx_classement_administratif text
     );"
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -c "CREATE TABLE $SCHEMA.ways_vertices_pgr(
+psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SCHEMA.ways_vertices_pgr(
         id bigserial unique,
         cnt int,
         chk int,
@@ -129,6 +129,6 @@ psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -c "CREATE TABLE $
 bash $TEMPLATES_DIR/generate_utilities.sh $SCHEMA > $WORK_DIR/utilities.sql
 bash $TEMPLATES_DIR/generate_routeProcedures.sh $SCHEMA > $WORK_DIR/routeProcedures.sql
 bash $TEMPLATES_DIR/generate_isochroneProcedures.sh $SCHEMA > $WORK_DIR/isochroneProcedures.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -a -f $WORK_DIR/utilities.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -a -f $WORK_DIR/routeProcedures.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port "$PG_PORT" -a -f $WORK_DIR/isochroneProcedures.sql
+psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/utilities.sql
+psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/routeProcedures.sql
+psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/isochroneProcedures.sql
