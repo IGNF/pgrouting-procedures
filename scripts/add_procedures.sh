@@ -7,6 +7,7 @@ SCHEMA="public"
 PG_HOST="localhost"
 PG_PORT=5432
 PG_USER="postgres"
+PGPASSWORD="postgres"
 DB_NAME="pgrouting"
 
 CREATE_DBS=True
@@ -38,14 +39,20 @@ while [ True ]; do
         shift 2
     elif [ "$1" = "--work-dir" -o "$1" = "-wd" ]; then
         WORK_DIR=$2
+        shift 2    
+    elif [ "$1" = "--pass" -o "$1" = "-P" ]; then
+        PGPASSWORD=$2
         shift 2
     else
         break
     fi
 done
 
+export PGPASSWORD=$PGPASSWORD
 
-if [ $CREATE_DBS ]; then
+if [ "$CREATE_DBS" = True ] ;then
+
+echo "Creating database \"$DB_NAME\" and schema $SCHEMA..."
 
 psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
     CREATE DATABASE $DB_NAME WITH ENCODING 'UTF8' TEMPLATE template0;
