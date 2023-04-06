@@ -4,7 +4,7 @@
 
 SCHEMA="public"
 
-PG_HOST="localhost"
+PG_HOST=""
 PG_PORT=5432
 PG_USER="postgres"
 PGPASSWORD="postgres"
@@ -19,7 +19,7 @@ while [ True ]; do
     if [ "$1" = "--schema" -o "$1" = "-s" ]; then
         SCHEMA=$2
         shift 2
-    elif [ "$1" = "--hote" -o "$1" = "-h" ]; then
+    elif [ "$1" = "--host" -o "$1" = "-h" ]; then
         PG_HOST=$2
         shift 2
     elif [ "$1" = "--port" -o "$1" = "-p" ]; then
