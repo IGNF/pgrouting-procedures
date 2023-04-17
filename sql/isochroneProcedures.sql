@@ -1,12 +1,5 @@
-#!/bin/sh
-
-#define parameters which are passed in.
-SCHEMA=$1
-
-#define the template.
-cat  << EOF
 -- Conversion d'un point de coordonnées en géométrie.
-CREATE OR REPLACE FUNCTION $SCHEMA.coordToGeom(location double precision[]) RETURNS geometry AS \$\$
+CREATE OR REPLACE FUNCTION coordToGeom(location double precision[]) RETURNS geometry AS $$
   DECLARE
     lon double precision;
     lat double precision;
@@ -16,10 +9,10 @@ CREATE OR REPLACE FUNCTION $SCHEMA.coordToGeom(location double precision[]) RETU
 
     RETURN st_setsrid(st_makepoint(lon, lat), 4326);
   END;
-\$\$ LANGUAGE 'plpgsql' ;
+$$ LANGUAGE 'plpgsql' ;
 
 -- Calcul de l'isochrone et génération de la géométrie.
-CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
+CREATE OR REPLACE FUNCTION isochroneGenerator(
   location double precision [],  -- Point de départ/arrivée du calcul.
   costValue double precision,    -- Valeur du coût.
   direction text,                -- Sens du parcours.
@@ -29,7 +22,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
   )
   RETURNS TABLE (
     geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
-  ) AS \$\$
+  ) AS $$
   DECLARE
     graph_query text;
     isochrone_query text;
@@ -39,7 +32,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
   BEGIN
 
     -- Point temporaire
-    nedge_id := $SCHEMA.nearest_edge(location[1], location[2], costname, rcostname, where_clause);
+    nedge_id := nearest_edge(location[1], location[2], costname, rcostname, where_clause);
 
     -- Si ce point nedge_id n'exite pas, on s'arrete et on renvoit un tableau vide
     IF nedge_id IS NULL THEN
@@ -47,7 +40,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     END IF;
 
     temp_fraction := ST_LineLocatePoint(
-      (SELECT the_geom FROM $SCHEMA.ways
+      (SELECT the_geom FROM ways
         WHERE id = nedge_id
       ),
       st_setsrid(st_makepoint(location[1], location[2]),4326)
@@ -58,12 +51,11 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
       RETURN;
     END IF;
 
-
     CREATE TEMP TABLE temp_point ON COMMIT DROP AS
       SELECT
         -1 as id,
         ST_LineInterpolatePoint(
-          (SELECT the_geom FROM $SCHEMA.ways WHERE id = nedge_id),
+          (SELECT the_geom FROM ways WHERE id = nedge_id),
           temp_fraction
         ) as the_geom
     ;
@@ -77,7 +69,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
         -1 as target,
         ', temp_fraction, ' * ', costName, ' as ', costName, ',
         ', temp_fraction, ' * ', rcostName, ' as ', rcostName, '
-      FROM $SCHEMA.ways
+      FROM ways
       WHERE id = ', nedge_id, ')
       UNION
       -- arc de -1 vers target
@@ -87,28 +79,28 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
         target as target,
         (1 - ', temp_fraction, ') * ', costName, ' as ', costName, ',
         (1 - ', temp_fraction, ') * ', rcostName, ' as ', rcostName, '
-      FROM $SCHEMA.ways
+      FROM ways
       WHERE id = ', nedge_id, ')')
     ;
 
     -- Requête permettant de récupèrer le graphe.
     IF (direction = 'arrival') THEN
-      graph_query := concat('SELECT id, source, target, ', rcostName,' AS cost, ', costName,' AS reverse_cost FROM $SCHEMA.ways', where_clause, ' UNION SELECT * from temp_edges');
+      graph_query := concat('SELECT id, source, target, ', rcostName,' AS cost, ', costName,' AS reverse_cost FROM ways', where_clause, ' UNION SELECT * from temp_edges');
     ELSE
-      graph_query := concat('SELECT id, source, target, ', costName,' AS cost, ', rcostName,' AS reverse_cost FROM $SCHEMA.ways', where_clause, ' UNION SELECT * from temp_edges');
+      graph_query := concat('SELECT id, source, target, ', costName,' AS cost, ', rcostName,' AS reverse_cost FROM ways', where_clause, ' UNION SELECT * from temp_edges');
     END IF;
 
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
-    isochrone_query := concat('SELECT ST_Union(geoms.the_geom) AS union FROM (SELECT v.the_geom AS the_geom FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id) AS geoms');
+    isochrone_query := concat('SELECT ST_Union(geoms.the_geom) AS union FROM (SELECT v.the_geom AS the_geom FROM pgr_drivingDistance($niv2$', graph_query, '$niv2$, -1, ', costValue, ', true) AS dd INNER JOIN ways_vertices_pgr AS v ON dd.node = v.id) AS geoms');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326))) FROM (', isochrone_query, ') AS u');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326)) FROM (', isochrone_query, ') AS u');
 
     RETURN QUERY EXECUTE final_query;
   END;
-\$\$ LANGUAGE 'plpgsql' ;
+$$ LANGUAGE 'plpgsql' ;
 
 -- Point d'entrée de l'API.
-CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
+CREATE OR REPLACE FUNCTION generateIsochrone(
     location double precision [],   -- Point de départ/arrivée du calcul.
     costValue double precision,     -- Valeur du coût.
     direction text,                 -- Sens du parcours.
@@ -118,7 +110,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
   )
   RETURNS TABLE (
     geometry text -- Zone de chalandise de l'isochrone (multipolygon geometry).
-  ) AS \$\$
+  ) AS $$
   DECLARE
     where_clause text;
     buffer_value double precision;
@@ -135,13 +127,11 @@ CREATE OR REPLACE FUNCTION $SCHEMA.generateIsochrone(
     ELSE
       buffer_value := 1;
     END IF;
-    where_clause := concat(' WHERE the_geom && (SELECT ST_Expand( ST_Extent( $SCHEMA.coordToGeom(\$niv3\$', location, '\$niv3\$)),', buffer_value ,'))');
+    where_clause := concat(' WHERE ways.the_geom && (SELECT ST_Expand( ST_Extent( coordToGeom($niv3$', location, '$niv3$)),', buffer_value ,'))');
     IF constraints != ''
     THEN
       where_clause := concat(where_clause, ' AND ', constraints);
     END IF;
-
-    RETURN QUERY SELECT * FROM $SCHEMA.isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
+    RETURN QUERY SELECT * FROM isochroneGenerator(location, costValue, direction, costColumn, rcostColumn, where_clause);
   END;
-\$\$ LANGUAGE 'plpgsql' ;
-EOF
+$$ LANGUAGE 'plpgsql' ;

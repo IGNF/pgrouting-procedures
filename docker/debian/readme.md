@@ -9,7 +9,7 @@ Build de l'image
 docker build -t pgr-debian -f docker/debian/Dockerfile .
 ```
 
-## Utilisation de l'image 
+## Utilation de l'image 
 
 Des éléments sont données sur les pages suivantes : 
 - https://hub.docker.com/_/postgres

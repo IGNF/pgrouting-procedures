@@ -14,9 +14,14 @@ Afin d'utiliser ces procèdures, il est nécessaire d'avoir une base de données
 
 ### Installation
 
-Il y a plusieurs fichiers SQL qui se répartissent l'ensemble des procèdures disponibles. Ces fichiers sont des templates, auxquels il faut fournir le nom de schéma. Ces fichiers sont dans le dossier [sql_templates](./sql_templates).
+Il y a plusieurs fichiers SQL qui se répartissent l'ensemble des procèdures disponibles. Ces fichiers sont tous dans le dossier [sql](./sql).
 
-Pour installer toutes les fonctions ou une partie, il faudra suivre la procédure décrite dans la page dédiée de la documentation.
+Pour installer toutes les fonctions ou une partie, il suffira de se servir de l'utilitaire `psql`:
+```sh
+psql -U user -h host -d db_name -f sql/routeProcedures.sql
+```
+
+Il est également possible d'utiliser un script bash pour intégrer ces procèdures en utilisant un nom de schéma particulier. On se reportera au dossier [sql_templates](./sql_templates).
 
 ### Docker
 
@@ -24,7 +29,7 @@ Une image docker est disponible dans le dossier [docker](./docker). Cette image 
 
 ## Version
 
-Version des procèdures: 2.1.0
+Version des procèdures: 2.0.0
 
 ## Licence
 

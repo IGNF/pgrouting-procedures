@@ -1,86 +1,37 @@
 #!/bin/bash
 
 #suppose l'existence du contenu de ../sql_templates dans /usr/local/bin/
+SCHEMA='public'
 
-SCHEMA="public"
-
-PG_HOST=""
 PG_PORT=5432
 PG_USER="postgres"
-PGPASSWORD="postgres"
 DB_NAME="pgrouting"
 
-CREATE_DBS=True
-
-TEMPLATES_DIR=/usr/local/bin
-WORK_DIR=/usr/local/bin
-
-while [ True ]; do
-    if [ "$1" = "--schema" -o "$1" = "-s" ]; then
-        SCHEMA=$2
-        shift 2
-    elif [ "$1" = "--host" -o "$1" = "-h" ]; then
-        PG_HOST=$2
-        shift 2
-    elif [ "$1" = "--port" -o "$1" = "-p" ]; then
-        PG_PORT=$2
-        shift 2
-    elif [ "$1" = "--user" -o "$1" = "-u" ]; then
-        PG_USER=$2
-        shift 2
-    elif [ "$1" = "--dbname" -o "$1" = "-d" ]; then
-        DB_NAME=$2
-        shift 2
-    elif [ "$1" = "--no-create-dbs" -o "$1" = "-ndbs" ]; then
-        CREATE_DBS=False
-        shift 1
-    elif [ "$1" = "--templates-dir" -o "$1" = "-td" ]; then
-        TEMPLATES_DIR=$2
-        shift 2
-    elif [ "$1" = "--work-dir" -o "$1" = "-wd" ]; then
-        WORK_DIR=$2
-        shift 2    
-    elif [ "$1" = "--pass" -o "$1" = "-P" ]; then
-        PGPASSWORD=$2
-        shift 2
-    else
-        break
-    fi
-done
-
-export PGPASSWORD=$PGPASSWORD
-
-if [ "$CREATE_DBS" = True ] ;then
-
-echo "Creating database \"$DB_NAME\" and schema $SCHEMA..."
-
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" <<-EOSQL
     CREATE DATABASE $DB_NAME WITH ENCODING 'UTF8' TEMPLATE template0;
     GRANT ALL PRIVILEGES ON DATABASE $DB_NAME to $PG_USER;
 EOSQL
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "postgres" <<-EOSQL
     CREATE DATABASE pivot WITH ENCODING 'UTF8' TEMPLATE template0;
     GRANT ALL PRIVILEGES ON DATABASE $DB_NAME to $PG_USER;
 EOSQL
 
-psql $DB_NAME -U $PG_USER - -c "CREATE SCHEMA IF NOT EXISTS $SCHEMA;"
+psql $DB_NAME -U $PG_USER -c "CREATE SCHEMA IF NOT EXISTS $SCHEMA;"
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "$DB_NAME" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "$DB_NAME" <<-EOSQL
     CREATE EXTENSION postgis;
     CREATE EXTENSION pgrouting;
 EOSQL
 
-psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "pivot" --host "$PG_HOST" --port $PG_PORT <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$PG_USER" --dbname "pivot" <<-EOSQL
     CREATE EXTENSION postgis;
     CREATE EXTENSION postgres_fdw;
 EOSQL
 
-fi
-
 
 echo "Installing procedures on \"$DB_NAME\" schema $SCHEMA..."
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SCHEMA.ways(
+psql $DB_NAME -U $PG_USER -c "CREATE TABLE $SCHEMA.ways(
         id bigserial unique,
         tag_id integer,
         length double precision,
@@ -124,7 +75,7 @@ psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SC
         cpx_numero_route_europeenne text,
         cpx_classement_administratif text
     );"
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SCHEMA.ways_vertices_pgr(
+psql $DB_NAME -U $PG_USER -c "CREATE TABLE $SCHEMA.ways_vertices_pgr(
         id bigserial unique,
         cnt int,
         chk int,
@@ -133,9 +84,9 @@ psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -c "CREATE TABLE $SC
         the_geom geometry(Point,4326)
     );"
 
-bash $TEMPLATES_DIR/generate_utilities.sh $SCHEMA > $WORK_DIR/utilities.sql
-bash $TEMPLATES_DIR/generate_routeProcedures.sh $SCHEMA > $WORK_DIR/routeProcedures.sql
-bash $TEMPLATES_DIR/generate_isochroneProcedures.sh $SCHEMA > $WORK_DIR/isochroneProcedures.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/utilities.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/routeProcedures.sql
-psql $DB_NAME -U $PG_USER --host "$PG_HOST" --port $PG_PORT -a -f $WORK_DIR/isochroneProcedures.sql
+bash /usr/local/bin/generate_utilities.sh $SCHEMA > /usr/local/bin/utilities.sql
+bash /usr/local/bin/generate_routeProcedures.sh $SCHEMA > /usr/local/bin/routeProcedures.sql
+bash /usr/local/bin/generate_isochroneProcedures.sh $SCHEMA > /usr/local/bin/isochroneProcedures.sql
+psql $DB_NAME -U $PG_USER -a -f /usr/local/bin/routeProcedures.sql
+psql $DB_NAME -U $PG_USER -a -f /usr/local/bin/utilities.sql
+psql $DB_NAME -U $PG_USER -a -f /usr/local/bin/isochroneProcedures.sql
