@@ -101,7 +101,7 @@ CREATE OR REPLACE FUNCTION $SCHEMA.isochroneGenerator(
     -- Requête intermédiaire, permettant de récupérer les données brutes du calcul de l'isochrone.
     isochrone_query := concat('SELECT ST_Union(geoms.the_geom) AS union FROM (SELECT v.the_geom AS the_geom FROM pgr_drivingDistance(\$niv2\$', graph_query, '\$niv2\$, -1, ', costValue, ', true) AS dd INNER JOIN $SCHEMA.ways_vertices_pgr AS v ON dd.node = v.id) AS geoms');
     -- Requête permettant de générer la géométrie finale à renvoyer.
-    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326))) FROM (', isochrone_query, ') AS u');
+    final_query := concat('SELECT ST_AsGeoJSON(ST_SetSRID(ST_ForceRHR(ST_ConcaveHull(u.union, 0.7)), 4326)) FROM (', isochrone_query, ') AS u');
 
     RETURN QUERY EXECUTE final_query;
   END;
