@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2.1.2
+
+FIXED:
+- correction pour éviter de publier github pages sur un tag
+
 ## 2.1.1
 
 CHANGED:
