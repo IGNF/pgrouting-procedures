@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2.2.0
+
+ADDED:
+- Ajout de templates pour les issues et les PR
+
 ## 2.1.2
 
 FIXED:
