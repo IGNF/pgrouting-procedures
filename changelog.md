@@ -4,6 +4,7 @@
 
 ADDED:
 - Ajout de templates pour les issues et les PR
+- A code of conduct was adapted from the contributor covenant 
 
 ## 2.1.2
 
