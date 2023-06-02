@@ -3,8 +3,9 @@
 ## 2.2.0
 
 ADDED:
-- Ajout de templates pour les issues et les PR
+- Templates for issues and PR
 - A code of conduct was adapted from the contributor covenant 
+- A contributing was added
 
 ## 2.1.2
 
