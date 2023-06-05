@@ -32,4 +32,4 @@ PgRouting est diffusé sous la licence GPL v3.
 
 ## Participer aux développements 
 
-Les participations à ce projet sont encouragées (votre notre [charte](./CODE_OF_CONDUCT.md) à ce sujet). Il vous est demandé de réaliser vos développements en partant de la branche *develop*. 
+Les participations à ce projet sont encouragées (votre notre [charte](./CODE_OF_CONDUCT.md) à ce sujet). Nous avons mis en place un [guide](./CONTRIBUTING.md) des contributions pour vous accompagner dans cette démarche. 

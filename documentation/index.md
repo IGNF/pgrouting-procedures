@@ -17,6 +17,8 @@ Développement <developers/readme>
 Templates SQL <developers/sql_templates/readme>
 Documentation <developers/documentation>
 Changelog <developers/history>
+Contribuer <developers/contributing>
+Code de conduite <developers/conduct>
 ```
 
 ----
