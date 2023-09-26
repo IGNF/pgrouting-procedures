@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2.2.0
+
+ADDED:
+- Templates for issues and PR
+- A code of conduct was adapted from the contributor covenant 
+- A contributing was added
+
 ## 2.1.2
 
 FIXED:
